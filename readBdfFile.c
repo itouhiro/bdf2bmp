@@ -20,6 +20,7 @@
 static int chars; //総glyph数
 static int fbbxH; //フォント全体のBOUNDINGBOXの 高さ(Height)
 static int fbbxW; //フォント全体のBOUNDINGBOXの 幅(Width)
+unsigned char *bitmapP = NULL; //各glyphの BITMAPデータを格納する
 
 void readBdfFile(unsigned char *bitmapP, FILE *readP){
 	int length;
@@ -74,13 +75,13 @@ void readBdfFile(unsigned char *bitmapP, FILE *readP){
 				d_printf("chars=%d\n",chars);
 
 				//メモリをallocate(割り当て)する
-				//tmpP = malloc(chars * fbbxH * fbbxW );
-				//if(tmpP == NULL){
-				//	printf("error malloc");
-				//	exit(-1);
-				//}else
-				//	bitmapP = tmpP;
-				//d_printf("malloc %dbytes\n",chars*fbbxH*fbbxW);
+				tmpP = malloc(chars * fbbxH * fbbxW );
+				if(tmpP == NULL){
+					printf("error malloc");
+					exit(-1);
+				}else
+					bitmapP = tmpP;
+				d_printf("malloc %dbytes\n",chars*fbbxH*fbbxW);
 			}
 			break;
 		case 'B':
@@ -118,7 +119,6 @@ int getline(char* lineP, int max, FILE* inputP){
 
 main(){
 	FILE *readP;
-	unsigned char *bitmapP = NULL; //各glyphの BITMAPデータを格納する
 	char readFilename[FILENAME_CHARMAX] = "courr18.bdf";
 
 	fbbxW = fbbxH = 14;
