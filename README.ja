@@ -1,8 +1,7 @@
-bdf2bmp  --  output all the glyphs in a bdf-font to a bmp-image-file
-version: 0.5.1
-date: Tue Jan 02 12:45:27 2001
-author: ITOU Hiroki (itouh@lycos.ne.jp)
-
+bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
+version: 0.5.2
+date:    Thu Jan 04 00:54:00 2001
+author:  ITOU Hiroki (itouh@lycos.ne.jp)
 
 ●説明
 BDFフォントの文字一覧を BMP画像に出力するソフトウェアです。
@@ -21,8 +20,8 @@ $ bdf2bmp -s3 -c16 courR18.bdf courR18.bmp
  -cN  column数(水平方向に並ぶグリフ数)を N個にします。Nに指定
       する数値は 1から 4096までに制限されています。デフォルトは 32。
       cと数字のあいだに空白を入れないでください。
- -w   プロポーショナル(可変幅)フォントの文字ごとの幅を、
-      色分けして表示する。デフォルトは色分けしません。
+ -w   グリフごとの幅を色分けして表示する。デフォルトは色分け
+      しません。
  -h   ヘルプを表示します。
 
 
@@ -42,7 +41,7 @@ ANSI Cの範囲で書いている(ただしコメントはC++スタイルを使�
 
 ●現在の制限
 文字仕切り(spacing)の色は、#a0a0c4 固定です。変更するには、
-ソースコードの 33行めから 35行めを直接書き換えてください。
+ソースコードの 35行めから 37行めを直接書き換えてください。
 
 
 ●著作権
@@ -52,6 +51,9 @@ Copyright (c) 2000,2001 ITOU Hiroki All rights reserved.
 
 
 ●更新履歴
+ver0.5.2 Thu Jan 04 00:54:00 2001
+         使用メモリ量の削減
+         bugfix
 ver0.5.1 Tue Jan 02 12:45:27 2001
          入力ファイルが BDFファイルかどうかをチェックするようにした
 ver0.5   Sat Dec 30 14:48:05 2000

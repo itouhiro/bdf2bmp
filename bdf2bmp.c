@@ -1,7 +1,9 @@
-// bdf2bmp  --  output all the glyphs in a bdf-font to a bmp-image-file
-// version: 0.5.1
-// date: Tue Jan 02 12:45:27 2001
-// author: ITOU Hiroki (itouh@lycos.ne.jp)
+/*
+ * bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
+ * version: 0.5.2
+ * date:    Thu Jan 04 00:54:00 2001
+ * author:  ITOU Hiroki (itouh@lycos.ne.jp)
+ */
 
 /*
  * Copyright (c) 2000,2001 ITOU Hiroki
@@ -40,8 +42,8 @@
 
 #define VERBOSE
 
-//if your computer is MSB-first(BigEndian),
-//  please delete the next line, or please change 'LSB' to 'MSB'
+
+/* If your computer is MSB-first(BigEndian), please delete the next line. */
 #define LSB
 
 #include <stdio.h>  //printf(), fopen(), fwrite()
@@ -81,12 +83,11 @@ struct boundingbox{
 //global var
 struct boundingbox font; //global boundingbox
 static int chars; //total number of glyphs in a bdf file
-static unsigned long bmpTotalSize; //bmp filesize (byte)
 static int dwflag = OFF; //device width; only used for proportional-fonts
 
 //func prototype
-unsigned char *mwrite(const void *_p, int n, unsigned char *dstP);
-unsigned char *assignBmp(unsigned char *bitmapP, int spacing, int colchar);
+void dwrite(const void *ptrP, int n, FILE *outP);
+void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP);
 void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct boundingbox glyph, int dw);
 int getline(char* lineP, int max, FILE* inputP);
 unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP);
@@ -95,45 +96,45 @@ int main(int argc, char *argv[]);
 
 
 
-// write to memory with arranging LSBfirst(LittleEndian)
-//   parameter: data-address, the data size, address to write
-//   return value; address to write next
-unsigned char *mwrite(const void *_p, int n, unsigned char *dstP){
-        const unsigned char *p = _p;
+/*
+ * write to disk; with arranging LSBfirst(LittleEndian) byte order,
+ *                 because BMP-file is defined as LSB-first
+ */
+void dwrite(const void *ptrP, int n, FILE *outP){
+        const unsigned char *p = ptrP;
         int i;
+        unsigned char tmp;
 #ifdef LSB
         //write without arranging if your machine is LSB(LittleEndian)
-        // because bmp-image-file is defined as LittleEndian
         for(i=0; i<n; i++){
-                *dstP = *(p+i);
-                dstP++;
-        }
 #else /* not LSB */
         //write with arranging if your machine is MSB(BigEndian)
         for(i=n-1; i>=0; i--){
-                *dstP = *(p+i);
-                dstP++;
-        }
 #endif /* LSB */
-        return dstP;
+                tmp = fwrite(p+i, 1, sizeof(unsigned char), outP);
+                if(tmp != sizeof(unsigned char)){
+                        printf("error: cannot write an output-file\n");
+                        exit(EXIT_FAILURE);
+                }
+        }
 }
 
 
 
-// 3. transfer bitmapAREA(onMemory) to bmpAREA(onMemory) with adding spacing
-// BMP-file: noCompression(BI_RGB), 8bitColor, Windows-Win32 type
-// return value: bmpADDRESS
-unsigned char *assignBmp(unsigned char *bitmapP, int spacing, int colchar){
+/*
+ * 3. read bitmapAREA(onMemory) and write bmpFile with adding spacing
+ *    BMP-file: noCompression(BI_RGB), 8bitColor, Windows-Win32 type
+ */
+void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         long bmpw; //bmp-image width (pixel)
         long bmph; //bmp-image height (pixel)
-        unsigned char *dstP; //the writing address of bmpAREA
-        unsigned char *bmpP; //the top address of bmpAREA
         int bmppad; //number of padding pixels
+        unsigned long bmpTotalSize; //bmp filesize (byte)
         // bmp-lines needs to be long alined and padded with 0
-        unsigned long u_long;
-        unsigned short u_short;
-        signed long s_long;
-        unsigned char u_char;
+        unsigned long ulong;
+        unsigned short ushort;
+        signed long slong;
+        unsigned char uchar;
         int i,x,y,g,tmp;
         int rowchar; //number of row glyphs
         int bx, by;
@@ -147,160 +148,170 @@ unsigned char *assignBmp(unsigned char *bitmapP, int spacing, int colchar){
 
         v_printf("  BMP width = %d pixels\n", (int)bmpw);
         v_printf("  BMP height = %d pixels\n", (int)bmph);
-        d_printf("number of glyphs column=%d ", colchar);
+        d_printf("  number of glyphs column=%d ", colchar);
         d_printf("row=%d\n", rowchar);
 
-        //allocate bmpAREA
         bmppad = ((bmpw + 3) / 4 * 4) - bmpw;
         bmpTotalSize = (bmpw + bmppad) * bmph
                 + sizeof(long)*11 + sizeof(short)*5 + sizeof(char)*4*256;
-        bmpP = (unsigned char *)malloc(bmpTotalSize);
-        if(bmpP == NULL){
-                printf("error malloc bmp\n");
-                exit(EXIT_FAILURE);
-        }
-        memset(bmpP, 0, bmpTotalSize); //zero-clear
         v_printf("  BMP filesize = %d bytes\n", (int)bmpTotalSize);
 
-        //BITMAPFILEHEADER struct
-        u_short = 0x4d42; //4d = 'M', 42 = 'B'
-        dstP = mwrite(&u_short, 2, bmpP); // 2 means sizeof(unsigned short)
-        dstP = mwrite(&bmpTotalSize, 4, dstP);
-        u_short = 0x00;
-        dstP = mwrite(&u_short, 2, dstP);
-        dstP = mwrite(&u_short, 2, dstP);
-        u_long = sizeof(long)*11 + sizeof(short)*5 + sizeof(char)*4*256;
-        dstP = mwrite(&u_long, 4, dstP); //bfOffBits: offset to image-data array
 
-        //BITMAPINFOHEADER struct
-        u_long = 40;
-        dstP = mwrite(&u_long, 4, dstP); //when Windows-BMP, this is 40
-        dstP = mwrite(&bmpw, 4, dstP); //biWidth
-        s_long = bmph;
-        dstP = mwrite(&s_long, 4, dstP); //biHeight: plus value -> down-top
-        u_short = 1;
-        dstP = mwrite(&u_short, 2, dstP); //biPlanes: must be 1
-        u_short = 8;
-        dstP = mwrite(&u_short, 2, dstP); //biBitCount: 8bitColor
-        u_long = 0;
-        dstP = mwrite(&u_long, 4, dstP); //biCompression: noCompression(BI_RGB)
-        dstP = mwrite(&u_long, 4, dstP); //biSizeImage: when noComprsn, 0 is ok
-        s_long = 0;
-        dstP = mwrite(&s_long, 4, dstP); //biXPelsPerMeter: resolution x, 0 ok
-        dstP = mwrite(&s_long, 4, dstP); //biYPelsPerMeter: res y, 0 is ok
-        u_long = 0;
-        dstP = mwrite(&u_long, 4, dstP); //biClrUsed: optimized color palette, not used
-        dstP = mwrite(&u_long, 4, dstP); //biClrImportant: 0 is ok
+        /*
+         * BITMAPFILEHEADER struct
+         */
+        ushort = 0x4d42; //4d = 'M', 42 = 'B'
+        dwrite(&ushort, sizeof(ushort), bmpP);
+        ulong = bmpTotalSize;
+        dwrite(&ulong, sizeof(ulong), bmpP);
+        ushort = 0x00;
+        dwrite(&ushort, sizeof(ushort), bmpP); //reserved as 0
+        dwrite(&ushort, sizeof(ushort), bmpP); //reserved as 0
 
-        //RGBQUAD[256]: color palette
+        //bfOffBits: offset to image-data array
+        ulong = sizeof(long)*11 + sizeof(short)*5 + sizeof(char)*4*256;
+        dwrite(&ulong, sizeof(ulong), bmpP);
+
+
+        /*
+         * BITMAPINFOHEADER struct
+         */
+        ulong = 40;
+        dwrite(&ulong, sizeof(ulong), bmpP); //when Windows-BMP, this is 40
+        slong = bmpw;
+        dwrite(&slong, sizeof(slong), bmpP); //biWidth
+        slong = bmph;
+        dwrite(&slong, sizeof(slong), bmpP); //biHeight: plus value -> down-top
+        ushort = 1;
+        dwrite(&ushort, sizeof(ushort), bmpP); //biPlanes: must be 1
+        ushort = 8;
+        dwrite(&ushort, sizeof(ushort), bmpP); //biBitCount: 8bitColor
+        ulong = 0;
+        dwrite(&ulong, sizeof(ulong), bmpP); //biCompression: noCompression(BI_RGB)
+        dwrite(&ulong, sizeof(ulong), bmpP); //biSizeImage: when noComprsn, 0 is ok
+        slong = 0;
+        dwrite(&slong, sizeof(slong), bmpP); //biXPelsPerMeter: resolution x; 0 ok
+        dwrite(&slong, sizeof(slong), bmpP); //biYPelsPerMeter: res y; 0 is ok
+        ulong = 0;
+        dwrite(&ulong, sizeof(ulong), bmpP); //biClrUsed: optimized color palette; not used
+        dwrite(&ulong, sizeof(ulong), bmpP); //biClrImportant: 0 is ok
+
+        /*
+         * RGBQUAD[256]: color palette
+         */
         //  palette[0]: background of glyphs
-        u_char = 0xff;
-        dstP = mwrite(&u_char, 1, dstP); //rgbBlue: B
-        dstP = mwrite(&u_char, 1, dstP); //rgbGreen: G
-        dstP = mwrite(&u_char, 1, dstP); //rgbRed: R;  palette[0]: #ffffff
-        u_char = 0;
-        dstP = mwrite(&u_char, 1, dstP); //rgbReserved: must be 0
+        uchar = 0xff;
+        dwrite(&uchar, sizeof(uchar), bmpP); //rgbBlue: B
+        dwrite(&uchar, sizeof(uchar), bmpP); //rgbGreen: G
+        dwrite(&uchar, sizeof(uchar), bmpP); //rgbRed: R;  palette[0]: #ffffff
+        uchar = 0;
+        dwrite(&uchar, sizeof(uchar), bmpP); //rgbReserved: must be 0
 
         //  palette[1]: foreground of glyphs
-        u_char = 0;
+        uchar = 0;
         for(i=0; i<4; i++)
-                dstP = mwrite(&u_char, 1, dstP); //palette[1]: color #000000
+                dwrite(&uchar, sizeof(uchar), bmpP); //palette[1]: #000000
 
         //  palette[2]: spacing
-        u_char = COLOR_SPACING_BLUE;
-        dstP = mwrite(&u_char, 1, dstP); //B
-        u_char = COLOR_SPACING_GREEN;
-        dstP = mwrite(&u_char, 1, dstP); //G
-        u_char = COLOR_SPACING_RED;
-        dstP = mwrite(&u_char, 1, dstP); //R
-        u_char = 0;
-        dstP = mwrite(&u_char, 1, dstP); //must be 0
+        uchar = COLOR_SPACING_BLUE;
+        dwrite(&uchar, sizeof(uchar), bmpP); //B
+        uchar = COLOR_SPACING_GREEN;
+        dwrite(&uchar, sizeof(uchar), bmpP); //G
+        uchar = COLOR_SPACING_RED;
+        dwrite(&uchar, sizeof(uchar), bmpP); //R
+        uchar = 0;
+        dwrite(&uchar, sizeof(uchar), bmpP); //must be 0
 
-        //  palette[3]: dwidth
-        u_char = COLOR_DWIDTH_BLUE;
-        dstP = mwrite(&u_char, 1, dstP); //B
-        u_char = COLOR_DWIDTH_GREEN;
-        dstP = mwrite(&u_char, 1, dstP); //G
-        u_char = COLOR_DWIDTH_RED;
-        dstP = mwrite(&u_char, 1, dstP); //R
-        u_char = 0;
-        dstP = mwrite(&u_char, 1, dstP); //must be 0
+        //  palette[3]: out of dwidth
+        uchar = COLOR_DWIDTH_BLUE;
+        dwrite(&uchar, sizeof(uchar), bmpP); //B
+        uchar = COLOR_DWIDTH_GREEN;
+        dwrite(&uchar, sizeof(uchar), bmpP); //G
+        uchar = COLOR_DWIDTH_RED;
+        dwrite(&uchar, sizeof(uchar), bmpP); //R
+        uchar = 0;
+        dwrite(&uchar, sizeof(uchar), bmpP); //must be 0
                 
         //  palette[4] to palette[255]: not used
         for(i=4; i<256; i++){
-                u_char = 0x00;
-                dstP = mwrite(&u_char, 1, dstP);
-                dstP = mwrite(&u_char, 1, dstP);
-                dstP = mwrite(&u_char, 1, dstP);
-                dstP = mwrite(&u_char, 1, dstP); //palette[4to255]: #000000
+                uchar = 0x00;
+                dwrite(&uchar, sizeof(uchar), bmpP);
+                dwrite(&uchar, sizeof(uchar), bmpP);
+                dwrite(&uchar, sizeof(uchar), bmpP);
+                dwrite(&uchar, sizeof(uchar), bmpP); //palette[4to255]: #000000
         }
 
-        //IMAGE DATA array
+        /*
+         * IMAGE DATA array
+         */
         for(y=bmph-1; y>=0; y--){
                 for(x=0; x<bmpw+bmppad; x++){
                         if(x>=bmpw){
-                                //padding: long aligned
-                                u_char = 0; //must pad with 0
-                                dstP = mwrite(&u_char, 1, dstP);
+                                //padding: long(4bytes) aligned
+                                uchar = 0; //must pad with 0
+                                dwrite(&uchar, sizeof(uchar), bmpP);
                         }else{
                                 if( (y%(font.h+spacing)<spacing) || (x%(font.w+spacing)<spacing) ){
                                         //spacing
-                                        u_char = 2; //fill palette[2]
-                                        dstP = mwrite(&u_char, 1, dstP);
+                                        uchar = 2; //fill palette[2]
+                                        dwrite(&uchar, sizeof(uchar), bmpP);
                                 }else{
-                                        //read bitmapAREA & write bmpAREA
+                                        //read bitmapAREA & write bmpFile
                                         g = (x/(font.w+spacing)) + (y/(font.h+spacing)*colchar);
-                                        //d_printf("g=%d ", g);
                                         bx = x - (spacing*(g%colchar)) - spacing;
                                         by = y - (spacing*(g/colchar)) - spacing;
-                                        //d_printf("bx=%d ", bx);
-                                        //d_printf("by=%d\n", by);
                                         tmp = g*(font.h*font.w) + (by%font.h)*font.w + (bx%font.w);
                                         if(tmp >= chars*font.h*font.w){
-                                                //required over bitmapAREA
-                                                u_char = 2; //fill palette[2]
+                                                //spacing over the last glyph
+                                                uchar = 2; //fill palette[2]
                                         }else
-                                                u_char = *( bitmapP + tmp);
-                                        dstP = mwrite(&u_char, 1, dstP);
+                                                uchar = *( bitmapP + tmp);
+                                        dwrite(&uchar, sizeof(uchar), bmpP);
                                 }
                         }
                 }
         }
-        return bmpP;
+        return;
 }
 
         
 
 
-//2. transfer bdf-font-file to bitmapAREA(onMemory) one glyph by one
+/*
+ * 2. transfer bdf-font-file to bitmapAREA(onMemory) one glyph by one
+ */
 void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct boundingbox glyph, int dw){
-        static char* hex2binP[]= {
+        static char *hex2binP[]= {
                 "0000","0001","0010","0011","0100","0101","0110","0111",
                 "1000","1001","1010","1011","1100","1101","1110","1111"
         };
         int d; //decimal number translated from hexNumber
         int hexlen; //a line length(without newline code)
-        char binP[LINE_CHARMAX]; //temporal buffer of binary strings translated from decimal number
+        char binP[LINE_CHARMAX]; //binary strings translated from decimal number
         static int nowchar = 0; //number of glyphs handlled until now
         char *tmpP;
         char tmpsP[LINE_CHARMAX];
         int bitAh, bitAw; //bitA width, height
-        int topoff, leftoff; //glyph offset top, left
+        int offtop, offbottom, offright, offleft; //glyph offset
         unsigned char *bitAP;
         unsigned char *bitBP;
-        unsigned char *dstbyteP; //destination in bitBP
         int i,j,x,y;
         
-        //2.1) change hexadecimal strings to a bitmap of glyph( called bitA)
+        /*
+         * 2.1) change hexadecimal strings to a bitmap of glyph( called bitA)
+         */
         tmpP = strstr(glyphP, "\n");
         if(tmpP == NULL){
                 //if there is BITMAP\nENDCHAR in a given bdf-file(e.g. UTRG__18.bdf)
+                *glyphP = '0';
+                *(glyphP+1) = '0';
+                *(glyphP+2) = '\n';
                 tmpP = glyphP + 2;
                 sizeglyphP = 3;
         }
         hexlen = tmpP - glyphP;
-        bitAw = hexlen*4;
-        bitAh = sizeglyphP/(hexlen+1);
+        bitAw = hexlen * 4;
+        bitAh = sizeglyphP / (hexlen+1);
         bitAP = malloc(bitAw * bitAh); //address of bitA
         if(bitAP == NULL){
                 printf("error bitA malloc\n");
@@ -324,13 +335,15 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
                 }
         }
 
-        //2.2)make an one-glyph bitmap area(called bitB)
+        /*
+         * 2.2)make another bitmap area(called bitB)
+         *      bitB is sized to FONTBOUNDINGBOX
+         */
         bitBP = malloc(font.w * font.h); //address of bitB
         if(bitBP == NULL){
                 printf("error bitB malloc\n");
                 exit(EXIT_FAILURE);
         }
-        //memset(bitBP, 0, font.w*font.h); //fill palette[0]
         for(i=0; i<font.h; i++){
                 for(j=0; j<font.w; j++){
                         if(dwflag == OFF){
@@ -344,105 +357,44 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
                 }
         }
 
-        //2.3) copy bitA to bitB with offset-shifting
-        //   bitA(smaller) to bitB(bigger)
-        //     a scope beyond bitA is already filled with palette[0or3]
-
-
-        //calculating offset
         /*
-          FONTBOUNDINGBOX 12 19 -1 -4
-          STARTCHAR quotedbl
-          ENCODING 34
-          SWIDTH 600 0
-          DWIDTH 11 0
-          BBX 5 5 3 7
-          BITMAP
-          D8      ##-##---
-          D8      ##-##---
-          D8      ##-##---
-          90      #--#----
-          90      #--#----
-          ENDCHAR
+         * 2.3) copy bitA inside BBX (smaller) to bitB (bigger)
+         *       with offset-shifting;
+         *      a scope beyond bitA is already filled with palette[0or3]
+         */
+        offleft = (-1)*font.offx + glyph.offx;
+        //offright = font.w - glyph.w - offleft;
 
-          (This fraction of a BDF file is quoted from courR18.bdf.
-           Copyright 1984-1989, 1994 Adobe Systems Incorporated.
-           Copyright 1988, 1994 Digital Equipment Corporation. 
-          )
-          
-          After offset-shifting, a bdf file above will be this:
+        offbottom = (-1)*font.offy + glyph.offy;
+        offtop = font.h - glyph.h - offbottom;
 
-
-                     |-width 12-|  <- from FONTBOUNDINGBOX (12)
-
-
-                -    ------------    -
-          topoff|    ------------    |
-                -    ------------    |
-            -        ----##-##---    height 19  <- from FONTBOUNDINGBOX 12 (19)
-            |        ----##-##---    |
-         glyphheight ----##-##---    |
-            |        ----#--#----    |
-            -        ----#--#----    |
-                -    ------------    |
-                |    ------------    |
-                |    ------------    |
-                |    ------------    |
-                |    ------------    |
-          bottomoff  ------------    |
-                |    ------------    |
-                |    ------------    |
-                |    ------------    |
-                |    ------------    |
-                -    ------------    -
-
-                     |--|
-                     leftoff
-
-
-        leftoff(whitespaces of left of the glyph) 4 = (-1)*(-1)+3
-            <- from   (-1)*FONTBOUNDINGBOX 12 19 (-1)   +   BBX 5 5 (3)
-
-        bottomoff(whitespaces of bottom of the glyph) 11 = (-1)*(-4)+7
-            <- from   (-1)*FONTBOUNDINGBOX 12 19 -1 (-4)   +   BBX 5 5 3 (7)
-
-        So, topoff(whitespaces of top of the glyph) is
-            topoff = height - glyphheight - bottomoff
-
-
-
-        If you define 
-                FONTBOUNDINGBOX font.w font.h font.offx font.offy
-                BBX glyph.w glyph.h glyph.offx glyph.offy
-        , then
-                topoff = font.h - glyph.h - ((-1)*font.offy + glyph.offy)
-                leftoff = (-1)*font.offx + glyph.offx
-        */
-        topoff = font.h - glyph.h - ((-1)*font.offy+glyph.offy);
-        leftoff = (-1)*font.offx + glyph.offx;
-
-        for(i=0; i<glyph.h; i++){
-                for(j=0; j<glyph.w; j++){
-                        dstbyteP = bitBP + (i+topoff)*font.w + (j+leftoff);
-                        if( (dstbyteP < bitBP) || (dstbyteP >= bitBP+font.w*font.h)){
-                                //out of fontboundingbox; don't write
-                                ; // do nothing
-                        }else{
-                                *(dstbyteP) = *(bitAP + i*bitAw + j);
-                        }
-                }
+        for(i=0; i<font.h; i++){
+                if( i<offtop || i>=offtop+glyph.h )
+                        ; //do nothing
+                else
+                        for(j=0; j<font.w; j++)
+                                if( j<offleft || j>=offleft+glyph.w )
+                                        ; //do nothing
+                                else
+                                        *(bitBP + i*font.w + j) = *(bitAP + (i-offtop)*bitAw + (j-offleft));
         }
 
-        //2.4) copy bitB to bitmapAREA
+        /*
+         * 2.4) copy bitB to bitmapAREA
+         */
         for(i=0; i<font.h; i++)
                 for(j=0; j<font.w; j++)
                         *(bitmapP + (nowchar*font.w*font.h) + (i*font.w) + j) = *(bitBP + i*font.w + j);
 
         nowchar++;
+        free(bitAP);
+        free(bitBP);
 }
 
 
-//read oneline from textfile
+/*
+ * read oneline from textfile
+ */
 int getline(char* lineP, int max, FILE* inputP){
         if (fgets(lineP, max, inputP) == NULL)
                 return 0;
@@ -451,11 +403,13 @@ int getline(char* lineP, int max, FILE* inputP){
 }
 
 
-//1. read BDF-file and transfer to assignBitmap()
+/*
+ * 1. read BDF-file and transfer to assignBitmap()
+ */
 unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
+        int i;
         int length;
         char sP[LINE_CHARMAX]; //one line(strings) from bdf-font-file
-        //int i,j;
         static int cnt; //only used in debugging: counter of appeared glyphs
         struct boundingbox glyph; //an indivisual glyph width, height,offset x,y
         int flagBitmap = OFF; //this line is bitmap-data?(ON) or no?(OFF)
@@ -474,6 +428,14 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                 }
                 if(length == 0)
                         break; //escape from while-loop
+
+                //remove carraige-return(CR)
+                for(i=0; i<length; i++){
+                        if(sP[i] == '\r'){
+                                sP[i] = '\n';
+                                length--;
+                        }
+                }
 
                 //classify from the top character of sP
                 switch(sP[0]){
@@ -531,7 +493,6 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                                         printf("error malloc\n");
                                         exit(EXIT_FAILURE);
                                 }
-                                //d_printf("malloc %dbytes\n",chars*font.h*font.w);
                         }else
                                 STOREBITMAP();
                         break;
@@ -553,7 +514,6 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                                         printf("error malloc bdf\n");
                                         exit(EXIT_FAILURE);
                                 }
-                                //d_printf("malloc: glyphP=%p\n",glyphP);
                                 memset(glyphP, 0, font.w*font.h); //zero clear
                                 nextP = glyphP;
                                 flagBitmap = ON;
@@ -585,7 +545,6 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                                 d_printf("%s\n",glyphP);
                                 assignBitmap(bitmapP, glyphP, nextP - glyphP, glyph, dw);
                                 flagBitmap = OFF;
-                                //d_printf("nextP-glyphP=%d\n",nextP-glyphP);
                                 free(glyphP);
                                 cnt++;
                         }else
@@ -601,8 +560,11 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 }
 
 
+/*
+ * 
+ */
 void printhelp(void){
-        printf("bdf2bmp version 0.5.1\n");
+        printf("bdf2bmp version 0.5.2\n");
         printf("Usage: bdf2bmp [-option] input-bdf-file output-bmp-file\n");
         printf("Option:\n");
         printf("  -sN    spacing N pixels (default N=2)\n");
@@ -611,19 +573,22 @@ void printhelp(void){
         printf("  -cN    specifying N colomns in grid (default N=32)\n");
         printf("             N is limited from 1 to 4096\n");
         printf("             DO NOT INSERT SPACE BETWEEN 'c' AND 'N'\n");
-        printf("  -w     showing a proportional-font width with a gray color\n");
+        printf("  -w     showing glyph widths with a gray color\n");
         printf("  -h     print help\n");
         exit(EXIT_FAILURE);
 }
 
 
+
+/*
+ *
+ */
 int main(int argc, char *argv[]){
         FILE *readP;
         FILE *writeP;
         char readFilename[FILENAME_CHARMAX] = "input.bdf";
         char writeFilename[FILENAME_CHARMAX] = "output.bmp";
         int tmp, i;
-        unsigned char *bmpP; //address of bmpAREA
         unsigned char *bitmapP = NULL; //address of bitmapAREA
         int spacing = 2; //breadth of spacing (default 2)
         int flag;
@@ -697,22 +662,14 @@ int main(int argc, char *argv[]){
         fclose(readP);
 
         //write bmp-image-file
-        bmpP = assignBmp(bitmapP, spacing, colchar);
-        tmp = fwrite(bmpP, 1, bmpTotalSize, writeP);
-        if((unsigned long)tmp != bmpTotalSize){
-                printf("error: cannot write %s\n", writeFilename);
-                free(bitmapP);
-                free(bmpP);
-                exit(EXIT_FAILURE);
-        }
+        writeBmpFile(bitmapP, spacing, colchar, writeP);
         tmp = fclose(writeP);
         if(tmp == EOF){
                 printf("error: cannot write %s\n", writeFilename);
                 free(bitmapP);
-                free(bmpP);
                 exit(EXIT_FAILURE);
         }
+
         free(bitmapP);
-        free(bmpP);
         return EXIT_SUCCESS;
 }

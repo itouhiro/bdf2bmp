@@ -1,8 +1,7 @@
-bdf2bmp  --  output all the glyphs in a bdf-font to a bmp-image-file
-version: 0.5.1
-date: Tue Jan 02 12:45:27 2001
-author: ITOU Hiroki (itouh@lycos.ne.jp)
-
+bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
+version: 0.5.2
+date:    Thu Jan 04 00:54:00 2001
+author:  ITOU Hiroki (itouh@lycos.ne.jp)
 
 SYNOPSIS
         bdf2bmp [-options ...] input-BDF-file output-BMP-file
@@ -11,6 +10,10 @@ DESCRIPTION
         The bdf2bmp utility creates a BMP-image-file containing
         all the glyph-images in a BDF-font-file.  That BMP file
         is a kind of Windows-type, 256 colors(8bitsPerPixel).
+
+        You need to be careful that this utility always
+        overwrites the output-file even if there is a
+        same-name file.
 
 OPTIONS
         bdf2bmp accepts command line options listed below:
@@ -28,8 +31,8 @@ OPTIONS
                 's' AND number.
 
         -w
-                This option directs to show the width of a
-                glyph with a gray color.
+                This option directs to show the widths of
+                glyphs with a gray color.
 
         -h
                 This option directs to print help.
@@ -47,16 +50,19 @@ COMPILE
                 Windows98 SecondEdition +
                 Borland C++ Compiler 5.5.1 for Win32
 
-        An example to compile and install in Linux system:
-                $  cc bdf2bmp.c -o bdf2bmp
-                $  su
-                #  cp bdf2bmp /usr/local/bin
-
         This source-code is almost written in ANSI C style.
         ( The exception is a comment-format.  The comments is
         written in C++ style. )
         So, you can probably compile and execute in other
         environments.
+
+        If your computer is MSB-first(BigEndian), please delete
+        the line 47 in the source-code that is "#define LSB".
+
+        An example to compile and install in Linux system:
+                $  cc bdf2bmp.c -o bdf2bmp
+                $  su
+                #  cp bdf2bmp /usr/local/bin
 
 COPYRIGHT
         Copyright (c) 2000,2001 ITOU Hiroki All rights reserved.
