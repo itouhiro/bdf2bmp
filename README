@@ -1,0 +1,67 @@
+bdf2bmp  --  output all the glyphs in a bdf-font to a bmp-image-file
+version: 0.5.1
+date: Tue Jan 02 12:45:27 2001
+author: ITOU Hiroki (itouh@lycos.ne.jp)
+
+
+SYNOPSIS
+        bdf2bmp [-options ...] input-BDF-file output-BMP-file
+
+DESCRIPTION
+        The bdf2bmp utility creates a BMP-image-file containing
+        all the glyph-images in a BDF-font-file.  That BMP file
+        is a kind of Windows-type, 256 colors(8bitsPerPixel).
+
+OPTIONS
+        bdf2bmp accepts command line options listed below:
+
+        -s<number>
+                This option specifies the width of spacing.
+                <number> is limited from 0 to 32.  The default
+                is 2.  DO NOT INSERT SPACE BETWEEN 's' AND
+                number.
+
+        -c<number>
+                This option specifies the number of columns in
+                grid.  <number> is limited from 1 to 4096.
+                The default is 32.  DO NOT INSERT SPACE BETWEEN
+                's' AND number.
+
+        -w
+                This option directs to show the width of a
+                glyph with a gray color.
+
+        -h
+                This option directs to print help.
+
+EXAMPLES
+        $  bdf2bmp -s3 -c16 courR18.bdf courR18.bmp
+
+        $  bdf2bmp -w xc/fonts/bdf/75dpi/timI18.bdf output.bmp
+
+COMPILE
+        The author succeeded compiling this source-code and
+        executing in
+                Linux 2.2.14 + gcc(egcs-2.91.66)
+
+                Windows98 SecondEdition +
+                Borland C++ Compiler 5.5.1 for Win32
+
+        An example to compile and install in Linux system:
+                $  cc bdf2bmp.c -o bdf2bmp
+                $  su
+                #  cp bdf2bmp /usr/local/bin
+
+        This source-code is almost written in ANSI C style.
+        ( The exception is a comment-format.  The comments is
+        written in C++ style. )
+        So, you can probably compile and execute in other
+        environments.
+
+COPYRIGHT
+        Copyright (c) 2000,2001 ITOU Hiroki All rights reserved.
+        See the source-code for details.
+
+--
+itouh
+http://www.geocities.co.jp/Playtown-Domino/7021/
