@@ -1,6 +1,6 @@
 // bdf2bmp  --  generate bmp-image-file from bdf-font-file
-// version: 0.2
-// date: Thu Dec 21 12:06:57 2000
+// version: 0.3
+// Thu Dec 21 18:20:32 2000
 // author: ITOU Hiroki (itouh@lycos.ne.jp)
 
 /*
@@ -53,70 +53,75 @@
 #define v_printf(message,arg)
 #endif /* VERBOSE */
 
+//改行コードもコピーしている
 #define storebitmap()   if(flagBitmap == ON){\
                             memcpy(nextP, sP, length);\
                             nextP += length;\
-                            if(nextP-glyphP > gboxw*gboxh){\
-				    printf("error nextP");\
-				    exit(-1);\
-			    }\
                         }
-                               //改行コードもコピーする
-                               //改行コードを含めた文字列 sPの長さ
 
 //global変数
-static int chars; //総glyph数
-static int gboxw; //フォント全体の グリフの 幅(Width) (単位 pixel)
-static int gboxh; //フォント全体の (グローバル)なグリフの 高さ(Height) (単位 pixel)
+static int chars; //総グリフ数
+static int gboxw; //フォント全体の(グローバルな)グリフの 幅(Width) (単位 pixel)
+static int gboxh; //フォント全体のグリフの高さ(Height)
 static unsigned long bmpTotalSize; //BMPファイルのサイズ(単位 byte)
-static int goffx; //フォント全体のオフセット(グローバルオフセット) X (単位 pixel)
-static int goffy; //フォント全体のオフセット(グローバルオフセット) Y (単位 pixel)
+static int goffx; //フォント全体の(グローバルな)オフセット(グローバルな) X (単位 pixel)
+static int goffy; //フォント全体のオフセット Y
 
 //関数prototype
-unsigned char*assignBmp(unsigned char* bitmapP);
+unsigned char *assignBmp(unsigned char* bitmapP, int spacing,
+  unsigned char p2r, unsigned char p2g, unsigned char p2b);
 unsigned char *mwrite(const void *_p, int n, unsigned char *dstP);
-//void assignBitmap(const unsigned char *bitmapP, const unsigned char *glyphP, const int sizeglyphP, const int nowboxw, const int nowboxh, const int nowoffx, const int nowoffy);
+void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP,
+  int nowboxw, int nowboxh, int nowoffx, int nowoffy);
 unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP);
 int getline(char* lineP, int max, FILE* inputP);
 int main(int argc, char *argv[]);
-
+void printhelp(void);
 
 // メモリ上のbitmapを、BMP画像ファイルに変換しつつ書き込む
-//  BMP画像ファイル: 無圧縮, 8bitColor, Windows Win32形式
-//  横に32文字置く
+//   BMP画像ファイル: 無圧縮, 8bitColor, Windows Win32形式
 // 返り値: BMP画像ファイルとなるデータがあるアドレス
-unsigned char *assignBmp(unsigned char* bitmapP){
-	long bmpW; //BMP画像ファイルの横幅(単位 pixel)
-	long bmpH; //BMP画像ファイルの縦の高さ(単位 pixel)
+unsigned char *assignBmp(unsigned char* bitmapP, int spacing,
+  unsigned char p2r, unsigned char p2g, unsigned char p2b){
+	long bmpw; //BMP画像ファイルの横幅(単位 pixel)
+	long bmph; //BMP画像ファイルの縦の高さ(単位 pixel)
 	unsigned char *dstP; //BMPファイルをなすメモリの現在書き込み場所を指す
-	unsigned char *bmpP = NULL; //BMPファイルをなすメモリの先頭書き込み場所を指す
+	unsigned char *bmpP; //BMPファイルをなすメモリの先頭書き込み場所を指す
 	int wPadding; //BMP画像ファイルで各行ごとにlong境界にあわせるためのpadding
 	unsigned long u_long;
 	unsigned short u_short;
 	signed long s_long;
 	unsigned char u_char;
-	unsigned char *tmpP = NULL;
 	int i,x,y,g,tmp;
+	int colchar, rowchar; //横方向の文字数、縦方向の文字数
+	int bx, by;
 
-	bmpW = gboxw * 32; //横幅は、32文字ぶん
-	bmpH = gboxh * ( (chars/32) + (chars%32!=0) ); //縦の高さは、総文字数を32で割ったものに、あまりが0でないときさらに1文字ぶん高さを足す; 例) 34文字あるとき、32文字で 1line、残りの2文字で 1line、計 2line
-	v_printf("BMP width=%dpixels ", bmpW);
-	v_printf("height=%dpixels\n", bmpH);
-	d_printf("number of glyphs horizontal=%d ", 32);
-	d_printf("vertical=%d\n", (chars/32)+(chars%32!=0) );
+	//横幅は、32文字ぶん
+	colchar = 32;
+	bmpw = (gboxw+spacing)*colchar + spacing;
+
+	//縦の高さは、総文字数を32で割ったものに、あまりが0でないとき
+	//さらに1文字ぶん高さを足す
+	//例) 34文字あるとき、32文字で 1line、残りの2文字で 1line、計 2line
+	rowchar = (chars/colchar) + (chars%colchar!=0);
+	bmph = (gboxh+spacing)*rowchar + spacing;
+
+	v_printf("  BMP width=%dpixels\n", (int)bmpw);
+	v_printf("  BMP height=%dpixels\n", (int)bmph);
+	d_printf("number of glyphs column=%d ", colchar);
+	d_printf("row=%d\n", rowchar);
 
 	//メモリの確保
-	wPadding = ((bmpW + 3) / 4 * 4) - bmpW;
-	bmpTotalSize = (bmpW + wPadding) * bmpH
+	wPadding = ((bmpw + 3) / 4 * 4) - bmpw;
+	bmpTotalSize = (bmpw + wPadding) * bmph
 		+ sizeof(long)*11 + sizeof(short)*5 + sizeof(char)*4*256;
-	tmpP = (unsigned char *)malloc(bmpTotalSize);
-	if(tmpP == NULL){
+	bmpP = (unsigned char *)malloc(bmpTotalSize);
+	if(bmpP == NULL){
 		printf("error malloc bmp");
 		exit(-1);
-	}else
-		bmpP = tmpP;
+	}
 	memset(bmpP, 0, bmpTotalSize); //確保したメモリを 0クリア
-	v_printf("BMP filesize=%dbytes\n", bmpTotalSize);
+	v_printf("  BMP filesize=%dbytes\n", (int)bmpTotalSize);
 
 	//BITMAPFILEHEADER構造体
 	u_short = 0x4d42;
@@ -131,9 +136,9 @@ unsigned char *assignBmp(unsigned char* bitmapP){
 	//BITMAPINFOHEADER構造体
 	u_long = 40;
 	dstP = mwrite(&u_long, 4, dstP); //Windows形式BMPは 40
-	dstP = mwrite(&bmpW, 4, dstP); //biWidth
-	s_long = bmpH;
-	dstP = mwrite(&s_long, 4, dstP); //biHeight: 負の値にすると top-down形式;正の値だとdown-top(上下が表示されるのと逆)
+	dstP = mwrite(&bmpw, 4, dstP); //biWidth
+	s_long = bmph;
+	dstP = mwrite(&s_long, 4, dstP); //biHeight: 正の値だとdown-top(上下が逆)
 	u_short = 1;
 	dstP = mwrite(&u_short, 2, dstP); //biPlanes: 必ず 1
 	u_short = 8;
@@ -162,11 +167,12 @@ unsigned char *assignBmp(unsigned char* bitmapP){
 	for(i=0; i<4; i++)
 		dstP = mwrite(&u_char, 1, dstP); //パレット[1]は #000000
 
-	//  パレット[2]; とりあえず色は #a0a0c4 にしてあります
-	u_char = 0xc4;
+	//  パレット[2]; 変更可能
+	u_char = p2b;
 	dstP = mwrite(&u_char, 1, dstP); //B
-	u_char = 0xa0;
+	u_char = p2g;
 	dstP = mwrite(&u_char, 1, dstP); //G
+	u_char = p2r;
 	dstP = mwrite(&u_char, 1, dstP); //R
 	u_char = 0;
 	dstP = mwrite(&u_char, 1, dstP); //必ず 0
@@ -181,25 +187,35 @@ unsigned char *assignBmp(unsigned char* bitmapP){
 	}
 
 	//イメージデータ
-	for(y=bmpH-1; y>=0; y--){
-		for(x=0; x<bmpW+wPadding; x++){
-			if(x>=bmpW){
-				//パディング: 1ラインごとのlong境界にあわせる
+	for(y=bmph-1; y>=0; y--){
+		for(x=0; x<bmpw+wPadding; x++){
+			if(x>=bmpw){
+				//パディング: BMPファイル 1ラインごとのlong境界にあわせる
 				u_char = 0;
-				dstP = mwrite(&u_char, 1, dstP); //0で埋める
+				dstP = mwrite(&u_char, 1, dstP); //0で埋めることに決まっている
 			}else{
-				//bitmapデータを読んで、bmp領域に書く
-				g = x/gboxw + (y/gboxh)*32; //g..glyphNumber
-				tmp = (gboxh*gboxw*g) + (gboxw*(y%gboxh)) + (x%gboxw);
-				if(tmp > chars*gboxh*gboxw){
-					//bmp領域最終行の文字の無い場所のbitmapデータが求められている
+				if( (y%(gboxh+spacing)<spacing) || (x%(gboxw+spacing)<spacing) ){
+					//仕切り
 					u_char = 2; //パレット[2]で埋める
-				}else
-					u_char = *( bitmapP + tmp);
-				dstP = mwrite(&u_char, 1, dstP);
+					dstP = mwrite(&u_char, 1, dstP);
+				}else{
+					//bitmapデータを読みとる
+					g = (x/(gboxw+spacing)) + (y/(gboxh+spacing)*colchar);
+					d_printf("g=%d ", g);
+					bx = x - (spacing*(g%colchar)) - spacing;
+					by = y - (spacing*(g/colchar)) - spacing;
+					d_printf("bx=%d ", bx);
+					d_printf("by=%d\n", by);
+					tmp = g*(gboxh*gboxw) + (by%gboxh)*gboxw + (bx%gboxw);
+					if(tmp >= chars*gboxh*gboxw){
+					//bmp領域最終行の文字の無い場所のbitmapデータが求められている
+						u_char = 2; //パレット[2]で埋める
+					}else
+						u_char = *( bitmapP + tmp);
+					dstP = mwrite(&u_char, 1, dstP);
+				}
 			}
 		}
-		//d_printf("tmp=%d\n",tmp);
 	}
 	return bmpP; //bmpTotalSizeはglobal varなので返さなくていい
 }
@@ -230,8 +246,11 @@ unsigned char *mwrite(const void *_p, int n, unsigned char *dstP){
 
 
 //bitmapをメモリに格納する
-// bitmapP に格納されたデータの構造: 1文字ごとに、右上端から横に書いて一段下の右端に移ってまた書いて、をくりかえす。1文字書きおわったその次のバイトから、次の文字が書かれる。
-void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP, int nowboxw, int nowboxh, int nowoffx, int nowoffy){
+// bitmapP に格納されたデータの構造: 1文字ごとに、右上端から横に書いて
+//一段下の右端に移ってまた書いて、の繰り返し
+//1文字書きおわったその次のバイトから、次の文字が書かれる
+void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP,
+  int nowboxw, int nowboxh, int nowoffx, int nowoffy){
 	static char* hex2binP[]= {
 		"0000","0001","0010","0011","0100","0101","0110","0111",
 		"1000","1001","1010","1011","1100","1101","1110","1111"
@@ -240,7 +259,7 @@ void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP,
 	int hexlen;
 	unsigned char binP[LINE_CHARMAX]; //2進数の文字列を一時的に格納する
 	static int nowchar = 0; //現在書きこもうとしているグリフが何個めか
-	unsigned char* tmpP = NULL;
+	unsigned char* tmpP;
 	char tmpsP[LINE_CHARMAX];
 	int bitAh, bitAw; //bitAの縦高さ,横幅
 	int topoff, leftoff; //グリフ上、左のオフセット値
@@ -272,14 +291,6 @@ void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP,
 		}
 	}
 
-	//ちゃんと書き込めてるかチェック
-	for(i=0; i<bitAh; i++){
-		for(j=0; j<bitAw; j++){
-			d_printf("%d", *(bitAP + i*hexlen*4 + j));
-		}
-		d_printf("\n",i); //iは意味なし(argが1つ必要なので置いてるだけ)
-	}
-
 	//2)別に、グローバルboxW*グローバルboxHの大きさがある領域(呼称 bitB)も作る
 	bitBP = malloc(gboxw * gboxh); //bitBの領域
 	if(bitBP == NULL){
@@ -291,21 +302,13 @@ void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP,
 	//3) bitA をオフセットを考慮しながら、bitBにコピーする
 	topoff = gboxh - nowboxh - ((-1)*goffy+nowoffy);
 	leftoff = (-1)*goffx + nowoffx;
-	d_printf("topoff=%d ",topoff);
-	d_printf("leftoff=%d\n",leftoff);
+	//d_printf("topoff=%d ",topoff);
+	//d_printf("leftoff=%d\n",leftoff);
 	//  bitA領域をbitBにコピー(範囲外の部分はすでに「パレット[0] で埋め」てある
 	for(i=0; i<nowboxh; i++)
 		for(j=0; j<nowboxw; j++)
 			*(bitBP + (i+topoff)*gboxw + (j+leftoff))
 				= *(bitAP + i*bitAw + j);
-
-	//ちゃんと書き込めてるかチェック
-	for(i=0; i<gboxh; i++){
-		for(j=0; j<gboxw; j++){
-			d_printf("%d", *(bitBP + i*gboxw + j));
-		}
-		d_printf("\n",i); //iは意味なし(argが1つ必要なので置いてるだけ)
-	}
 
 	//4) bitBをbitmap用領域に書き込む
 	for(i=0; i<gboxh; i++)
@@ -352,11 +355,10 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 				tokP += (strlen(tokP)+1);
 				tokP = strtok(tokP, "\n");
 				goffy = atoi(tokP);
-				v_printf("global glyph width=%dpixels ",gboxw);
-				v_printf("height=%dpixels\n",gboxh);
-				v_printf("global glyph offset x=%dpixels ",goffx);
-				v_printf("y=%dpixels\n",goffy);
-				//d_printf("gboxw*gboxh=%d\n",gboxw*gboxh);
+				d_printf("global glyph width=%dpixels ",gboxw);
+				d_printf("height=%dpixels\n",gboxh);
+				d_printf("global glyph offset x=%dpixels ",goffx);
+				d_printf("y=%dpixels\n",goffy);
 			}else
 				storebitmap();
 			break;
@@ -367,7 +369,7 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 				tokP += (strlen(tokP)+1);
 				tokP = strtok(tokP, "\n");
 				chars = atoi(tokP);
-				v_printf("total chars=%d\n",chars);
+				v_printf("  Total chars=%d\n",chars);
 				cnt=0;
 
 				//メモリをallocate(割り当て)する
@@ -376,15 +378,14 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 					printf("error malloc");
 					exit(-1);
 				}
-				d_printf("malloc %dbytes\n",chars*gboxh*gboxw);
-				//d_printf("malloc bitmapP=%p\n",bitmapP);
+				//d_printf("malloc %dbytes\n",chars*gboxh*gboxw);
 			}else
 				storebitmap();
 			break;
 		case 'B':
 			if(strncmp(sP, "BITMAP", 6) == 0){
 				//ビットマップデータ(16進数の文字列)を一時保存する領域、を確保する
-				glyphP = (unsigned char*)malloc(gboxw*gboxh); //ほんとはこんなにいらないけど、多めに確保
+				glyphP = (unsigned char*)malloc(gboxw*gboxh); //こんなにいらないけど、多めに確保
 				if(glyphP == NULL){
 					printf("error malloc bdf");
 					exit(-1);
@@ -408,28 +409,22 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 				tokP += (strlen(tokP)+1);//offy
 				tokP = strtok(tokP, "\n");
 				nowoffy = atoi(tokP);
-				d_printf("glyph width=%dpixels ",nowboxw);
-				d_printf("height=%dpixels\n",nowboxh);
-				d_printf("glyph offset x=%dpixels ",nowoffx);
-				d_printf("y=%dpixels\n",nowoffy);
+				//d_printf("glyph width=%dpixels ",nowboxw);
+				//d_printf("height=%dpixels\n",nowboxh);
+				//d_printf("glyph offset x=%dpixels ",nowoffx);
+				//d_printf("y=%dpixels\n",nowoffy);
 			}else
 				storebitmap();
 			break;
 		case 'E':
 			if(strncmp(sP, "ENDCHAR", 7) == 0){
+				d_printf("glyph %d\n", cnt);
+				//d_printf("%s\n",glyphP);
 				assignBitmap(bitmapP, glyphP, nextP - glyphP, nowboxw, nowboxh, nowoffx, nowoffy);
 				flagBitmap = OFF;
-				//d_printf("nextP=%p\n",nextP);
 				//d_printf("nextP-glyphP=%d\n",nextP-glyphP);
-				//for(j=0;j<gboxw*gboxh; j++){
-				//	if(j%16==0)printf("\n");
-				//	printf("%02d ", *(glyphP+j));
-				//}
-				d_printf("%s\n",glyphP);
-				d_printf("glyphP=%p\n",glyphP);
-				//d_printf("free: glyphP=%p\n",glyphP);
+				//d_printf("glyphP=%p\n",glyphP);
 				free(glyphP);
-				d_printf("glyph %d\n", cnt);
 				cnt++;
 			}else
 				storebitmap();
@@ -454,29 +449,60 @@ int getline(char* lineP, int max, FILE* inputP){
 int main(int argc, char *argv[]){
 	FILE *readP;
 	FILE *writeP;
-	char readFilename[FILENAME_CHARMAX] = "courR18.bdf";
-	char writeFilename[FILENAME_CHARMAX] = "courR18.bmp";
-	int tmp;
-	unsigned char *bmpP = NULL;
+	char readFilename[FILENAME_CHARMAX] = "input.bdf";
+	char writeFilename[FILENAME_CHARMAX] = "output.bmp";
+	int tmp, i;
+	unsigned char *bmpP; //BMP画像ファイルを成すデータのあるところ
 	unsigned char *bitmapP = NULL; //各glyphの BITMAPデータ(BMP画像にする前の一時的データ)を格納する
+	int spacing = 2; //文字仕切りの幅 (default 2)
+	int flag;
+	unsigned char p2r, p2g, p2b; //パレット[2]の色: Red, Green, Blue
 
-	if(argc != 3){
-		printf("error argc\n");
-		printf("ex)  bdf2bmp input.bdf output.bmp\n\n");
-		exit(-1);
+	//引き数の処理
+	if(argc < 3){
+		//引き数が足りない場合
+		//printf("error: not enough argument!\n");
+		printhelp();
+	}else if(argc > 4){
+		printf("error: too many argument!\n");
+		printhelp();
 	}
+	p2r = 0xa0; p2g = 0xa0; p2b = 0xc4; //パレット[2]のデフォルト色 #a0a0c4
+	for(i=1, flag=0; i<argc; i++){
+		switch( argv[i][0] ){
+		case '-':
+			if(argv[i][1]=='s')
+				spacing = atoi(&argv[i][2]);
+			else if( (argv[i][1]=='v') || (argv[i][1]=='h'))
+				printhelp();
+			break;
+		default:
+			if(flag == 0){
+				strcpy(readFilename, argv[i]);
+				flag ++;
+			}else{
+				strcpy(writeFilename, argv[i]);
+				if(strcmp(readFilename, writeFilename) == 0){
+					printf("error: input-filename and output-filename are same\n");
+					exit(-1);
+				}
+			}
+			break;
+		}
+	}
+	//仕切り は、0to32ピクセルまで
+	if( (spacing<0) || (spacing>32) )
+		spacing = 2;
 
 	//ファイルの読み書きの準備
-	strcpy(readFilename, argv[1]);
 	readP = fopen(readFilename, "r");
 	if(readP == NULL){
-		printf("error fopen r");
+		printf("error: %s does not exist!\n", readFilename);
 		exit(-1);
 	}
-	strcpy(writeFilename, argv[2]);
 	writeP=fopen(writeFilename, "wb");
 	if(writeP == NULL){
-		printf("error fopen w");
+		printf("error: cannot write %s !\n", writeFilename);
 		exit(-1);
 	}
 
@@ -485,24 +511,33 @@ int main(int argc, char *argv[]){
 	fclose(readP);
 
 	//BMPファイルを書き込む
-	bmpP = assignBmp(bitmapP);
+	bmpP = assignBmp(bitmapP, spacing, p2r, p2g, p2b);
 	tmp = fwrite(bmpP, 1, bmpTotalSize, writeP);
 	if((unsigned long)tmp != bmpTotalSize){
-		printf("error fwrite %d %d\n", bmpTotalSize, tmp);
+		printf("error: cannot write %s !\n", writeFilename);
 		free(bitmapP);
 		free(bmpP);
 		exit(-1);
 	}
 	tmp = fclose(writeP);
 	if(tmp == EOF){
-		printf("error 3");
+		printf("error: cannot write %s !\n", writeFilename);
 		free(bitmapP);
 		free(bmpP);
 		exit(-1);
 	}
 	free(bitmapP);
 	free(bmpP);
-
 	return EXIT_SUCCESS;
 }
-//end of file
+
+void printhelp(void){
+	printf("bdf2bmp version 0.3\n");
+	printf("Usage: bdf2bmp [-option] input-bdf-file output-bmp-file\n");
+	printf("Option:\n");
+	printf("  -sN    spacing N pixels; N is limited to 0 to 32 (default N=2)\n");
+	printf("             DO NOT INSERT SPACE BETWEEN 's' AND 'N'\n");
+	printf("  -h     print help\n");
+	//printf("  -v             print version\n");
+	exit(-1);
+}

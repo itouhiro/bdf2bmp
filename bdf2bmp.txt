@@ -1,25 +1,37 @@
 bdf2bmp  --  generate bmp-image-file from bdf-font-file
-version: 0.2
-date: Thu Dec 21 12:06:57 2000
+version: 0.3
+date: Thu Dec 21 18:20:32 2000
 author: ITOU Hiroki (itouh@lycos.ne.jp)
 
 ●説明
 BDFフォントファイルから BMP画像ファイルを生成するソフトウェアです。
 8bitカラー(256色)のBMP画像ファイルを生成します。
 
-使いかたは、
-$  bdf2bmp input.bdf output.bmp
-でOK。
+使いかたは、たとえば
+$ bdf2bmp -s10 courR18.bdf courR18.bmp
+とすると、courR18.bdfを読みこみ、courR18.bmpを出力します。
+もし courR18.bmpがすでに存在した場合は上書きするので
+気をつけてください。
+
+オプション:
+ -sN  文字仕切り(space)の幅を Nピクセルにします。Nに指定する数値は、
+      0から32までに制限されています。デフォルトは 2。
+ -h   ヘルプを表示します。
+
 
 ●ファイル
-bdf2bmp02/bdf2bmp.c    ソースコード
+bdf2bmp03/bdf2bmp.c    ソースコード
           bdf2bmp.txt  ドキュメント(このファイル)
           bdf2bmp.exe  Windowsで動作するバイナリ
+
 
 ●コンパイル
 FreeBSD 3.5.1R + gcc 2.7.2.3 と、
 PlamoLinux 2.0 + gcc version egcs-2.91.66 19990314 (egcs-1.1.2 release)
-でコンパイル、動作を確認しました。
+で動作を確認しました。
+コンパイルは、
+$ cc bdf2bmp.c -o bdf2bmp
+としてください。
 
 Windowsで動作するバイナリは Windows98SecondEditon日本語版 +
 Borland C++ Compiler 5.5.1 for Win32 日本語版でコンパイルしました。
@@ -27,12 +39,20 @@ Windowsでソースコードからコンパイルするときは、ソースコ�
 文字コードを、元はEUC-JP(改行コード UNIX)ですが、Shift_JIS(DOS)に
 変換してからコンパイルしてください。
 
+
 ●現在の制限
+文字仕切りの色は、#a0a0c4 固定です。変更するには、
+ソースコードの 470行めを直接書き換えてください。
+水平方向に並ぶグリフ数は、32個に固定されています。
+
 
 ●著作権
 ソースコードに記述してあります。
 
+
 ●更新履歴
+ver0.3   Thu Dec 21 18:20:32 2000
+         文字仕切りの幅を変更できるようにした
 ver0.2   Thu Dec 21 12:06:57 2000
          各グリフごとにオフセットを変えてある BDFファイル、
          たとえば courR18.bdfなど、に対応した
