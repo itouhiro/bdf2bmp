@@ -1,7 +1,7 @@
 /*
  * bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
- * version: 0.5.2
- * date:    Thu Jan 04 00:54:00 2001
+ * version: 0.5.3
+ * date:    Tue Jan 09 17:50:20 2001
  * author:  ITOU Hiroki (itouh@lycos.ne.jp)
  */
 
@@ -31,30 +31,30 @@
  * SUCH DAMAGE.
  */
 
-//modify if you like; color of spacing: default #a0a0c4
+/* modify if you like; color of spacing: default #a0a0c4 */
 #define COLOR_SPACING_RED 0xa0
 #define COLOR_SPACING_GREEN 0xa0
 #define COLOR_SPACING_BLUE 0xc4
-//modify if you like; color of out-of-dwidth: default #d4d4dd
+/* modify if you like; color of out-of-dwidth: default #d4d4dd */
 #define COLOR_DWIDTH_RED 0xd4
 #define COLOR_DWIDTH_GREEN 0xd4
 #define COLOR_DWIDTH_BLUE 0xdd
 
 #define VERBOSE
 
+#include <stdio.h>  /* printf(), fopen(), fwrite() */
+#include <stdlib.h> /* malloc(), EXIT_SUCCESS, strtol(), exit() */
+#include <string.h> /* strcmp(), strcpy() */
+#include <limits.h> /* strtol() */
+#include <sys/stat.h> /* stat() */
+#include <sys/types.h> /* stat ? */
 
-/* If your computer is MSB-first(BigEndian), please delete the next line. */
-#define LSB
+#define LINE_CHARMAX 1000 /* number of max characters in bdf-font-file; number is without reason */
+#define FILENAME_CHARMAX 256 /* number of max characters in filenames;  number is without reason */
+#define ON 1 /* number is without reason; only needs the difference to OFF */
+#define OFF 0 /* number is without reason; only needs the difference to ON */
+#define PARAM_MAX 10 /* max number of parameters */
 
-#include <stdio.h>  //printf(), fopen(), fwrite()
-#include <stdlib.h> //malloc(), EXIT_SUCCESS, strtol(), exit()
-#include <string.h> //strcmp(), strcpy()
-#include <limits.h> //strtol()
-
-#define LINE_CHARMAX 1000 //number of max characters in bdf-font-file; number is without reason
-#define FILENAME_CHARMAX 256 //number of max characters in filenames;  number is without reason
-#define ON 1 //number is without reason; only needs the difference to OFF
-#define OFF 0 //number is without reason; only needs the difference to ON
 #ifdef DEBUG
 #define d_printf(message,arg) printf(message,arg)
 #else /* not DEBUG */
@@ -67,25 +67,27 @@
 #define v_printf(message,arg)
 #endif /* VERBOSE */
 
-//macro
+/* macro */
 #define STOREBITMAP()   if(flagBitmap == ON){\
                             memcpy(nextP, sP, length);\
                             nextP += length;\
                         }
 
 struct boundingbox{
-        int w; //width (pixel)
-        int h; //height
-        int offx; //offset y (pixel)
-        int offy; //offset y
+        int w; /* width (pixel) */
+        int h; /* height */
+        int offx; /* offset y (pixel) */
+        int offy; /* offset y */
 };
 
-//global var
-struct boundingbox font; //global boundingbox
-static int chars; //total number of glyphs in a bdf file
-static int dwflag = OFF; //device width; only used for proportional-fonts
+/* global var */
+struct boundingbox font; /* global boundingbox */
+static int chars; /* total number of glyphs in a bdf file */
+static int dwflag = OFF; /* device width; only used for proportional-fonts */
+static int endian; /* 0 = MSB, 1 = LSB */
 
-//func prototype
+/* func prototype */
+void checkEndian(void);
 void dwrite(const void *ptrP, int n, FILE *outP);
 void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP);
 void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct boundingbox glyph, int dw);
@@ -97,24 +99,52 @@ int main(int argc, char *argv[]);
 
 
 /*
+ * Is your-CPU-byte-order MSB or LSB?
+ * MSB .. Most Significant Byte first (BigEndian)  e.g. PowerPC, SPARC
+ * LSB .. Least Significant Byte first (LittleEndian) e.g. Intel Pentium
+ */
+void checkEndian(void){
+        unsigned long ulong = 0x12345678;
+        unsigned char *ucharP;
+
+        ucharP = (unsigned char *)(&ulong);
+        if(*ucharP == 0x78){
+                d_printf("LSB 0x%x\n", *ucharP);
+                endian = 1;
+        }else{
+                d_printf("MSB 0x%x\n", *ucharP);
+                endian = 0;
+        }
+}
+
+
+
+/*
  * write to disk; with arranging LSBfirst(LittleEndian) byte order,
  *                 because BMP-file is defined as LSB-first
  */
-void dwrite(const void *ptrP, int n, FILE *outP){
-        const unsigned char *p = ptrP;
+void dwrite(const void *varP, int n, FILE *outP){
+        const unsigned char *p = varP;
         int i;
         unsigned char tmp;
-#ifdef LSB
-        //write without arranging if your machine is LSB(LittleEndian)
-        for(i=0; i<n; i++){
-#else /* not LSB */
-        //write with arranging if your machine is MSB(BigEndian)
-        for(i=n-1; i>=0; i--){
-#endif /* LSB */
-                tmp = fwrite(p+i, 1, sizeof(unsigned char), outP);
-                if(tmp != sizeof(unsigned char)){
-                        printf("error: cannot write an output-file\n");
-                        exit(EXIT_FAILURE);
+
+        if(endian == 1){
+                /* LSB; write without arranging */
+                for(i=0; i<n; i++){
+                        tmp = fwrite(p+i, 1, sizeof(unsigned char), outP);
+                        if(tmp != sizeof(unsigned char)){
+                                printf("error: cannot write an output-file\n");
+                                exit(EXIT_FAILURE);
+                        }
+                }
+        }else{
+                /* MSB; write with arranging */
+                for(i=n-1; i>=0; i--){
+                        tmp = fwrite(p+i, 1, sizeof(unsigned char), outP);
+                        if(tmp != sizeof(unsigned char)){
+                                printf("error: cannot write an output-file\n");
+                                exit(EXIT_FAILURE);
+                        }
                 }
         }
 }
@@ -126,23 +156,23 @@ void dwrite(const void *ptrP, int n, FILE *outP){
  *    BMP-file: noCompression(BI_RGB), 8bitColor, Windows-Win32 type
  */
 void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
-        long bmpw; //bmp-image width (pixel)
-        long bmph; //bmp-image height (pixel)
-        int bmppad; //number of padding pixels
-        unsigned long bmpTotalSize; //bmp filesize (byte)
-        // bmp-lines needs to be long alined and padded with 0
+        long bmpw; /* bmp-image width (pixel) */
+        long bmph; /* bmp-image height (pixel) */
+        int bmppad; /* number of padding pixels */
+        unsigned long bmpTotalSize; /* bmp filesize (byte) */
+        /*  bmp-lines needs to be long alined and padded with 0 */
         unsigned long ulong;
         unsigned short ushort;
         signed long slong;
         unsigned char uchar;
         int i,x,y,g,tmp;
-        int rowchar; //number of row glyphs
+        int rowchar; /* number of row glyphs */
         int bx, by;
 
-        //bmp-image width
+        /* bmp-image width */
         bmpw = (font.w+spacing)*colchar + spacing;
 
-        //bmp-image height
+        /* bmp-image height */
         rowchar = (chars/colchar) + (chars%colchar!=0);
         bmph = (font.h+spacing)*rowchar + spacing;
 
@@ -160,15 +190,15 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         /*
          * BITMAPFILEHEADER struct
          */
-        ushort = 0x4d42; //4d = 'M', 42 = 'B'
+        ushort = 0x4d42; /* 4d = 'M', 42 = 'B' */
         dwrite(&ushort, sizeof(ushort), bmpP);
         ulong = bmpTotalSize;
         dwrite(&ulong, sizeof(ulong), bmpP);
         ushort = 0x00;
-        dwrite(&ushort, sizeof(ushort), bmpP); //reserved as 0
-        dwrite(&ushort, sizeof(ushort), bmpP); //reserved as 0
+        dwrite(&ushort, sizeof(ushort), bmpP); /* reserved as 0 */
+        dwrite(&ushort, sizeof(ushort), bmpP); /* reserved as 0 */
 
-        //bfOffBits: offset to image-data array
+        /* bfOffBits: offset to image-data array */
         ulong = sizeof(long)*11 + sizeof(short)*5 + sizeof(char)*4*256;
         dwrite(&ulong, sizeof(ulong), bmpP);
 
@@ -177,68 +207,68 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
          * BITMAPINFOHEADER struct
          */
         ulong = 40;
-        dwrite(&ulong, sizeof(ulong), bmpP); //when Windows-BMP, this is 40
+        dwrite(&ulong, sizeof(ulong), bmpP); /* when Windows-BMP, this is 40 */
         slong = bmpw;
-        dwrite(&slong, sizeof(slong), bmpP); //biWidth
+        dwrite(&slong, sizeof(slong), bmpP); /* biWidth */
         slong = bmph;
-        dwrite(&slong, sizeof(slong), bmpP); //biHeight: plus value -> down-top
+        dwrite(&slong, sizeof(slong), bmpP); /* biHeight: plus value -> down-top */
         ushort = 1;
-        dwrite(&ushort, sizeof(ushort), bmpP); //biPlanes: must be 1
+        dwrite(&ushort, sizeof(ushort), bmpP); /* biPlanes: must be 1 */
         ushort = 8;
-        dwrite(&ushort, sizeof(ushort), bmpP); //biBitCount: 8bitColor
+        dwrite(&ushort, sizeof(ushort), bmpP); /* biBitCount: 8bitColor */
         ulong = 0;
-        dwrite(&ulong, sizeof(ulong), bmpP); //biCompression: noCompression(BI_RGB)
-        dwrite(&ulong, sizeof(ulong), bmpP); //biSizeImage: when noComprsn, 0 is ok
+        dwrite(&ulong, sizeof(ulong), bmpP); /* biCompression: noCompression(BI_RGB) */
+        dwrite(&ulong, sizeof(ulong), bmpP); /* biSizeImage: when noComprsn, 0 is ok */
         slong = 0;
-        dwrite(&slong, sizeof(slong), bmpP); //biXPelsPerMeter: resolution x; 0 ok
-        dwrite(&slong, sizeof(slong), bmpP); //biYPelsPerMeter: res y; 0 is ok
+        dwrite(&slong, sizeof(slong), bmpP); /* biXPelsPerMeter: resolution x; 0 ok */
+        dwrite(&slong, sizeof(slong), bmpP); /* biYPelsPerMeter: res y; 0 is ok */
         ulong = 0;
-        dwrite(&ulong, sizeof(ulong), bmpP); //biClrUsed: optimized color palette; not used
-        dwrite(&ulong, sizeof(ulong), bmpP); //biClrImportant: 0 is ok
+        dwrite(&ulong, sizeof(ulong), bmpP); /* biClrUsed: optimized color palette; not used */
+        dwrite(&ulong, sizeof(ulong), bmpP); /* biClrImportant: 0 is ok */
 
         /*
          * RGBQUAD[256]: color palette
          */
-        //  palette[0]: background of glyphs
+        /*   palette[0]: background of glyphs */
         uchar = 0xff;
-        dwrite(&uchar, sizeof(uchar), bmpP); //rgbBlue: B
-        dwrite(&uchar, sizeof(uchar), bmpP); //rgbGreen: G
-        dwrite(&uchar, sizeof(uchar), bmpP); //rgbRed: R;  palette[0]: #ffffff
+        dwrite(&uchar, sizeof(uchar), bmpP); /* rgbBlue: B */
+        dwrite(&uchar, sizeof(uchar), bmpP); /* rgbGreen: G */
+        dwrite(&uchar, sizeof(uchar), bmpP); /* rgbRed: R;  palette[0]: #ffffff */
         uchar = 0;
-        dwrite(&uchar, sizeof(uchar), bmpP); //rgbReserved: must be 0
+        dwrite(&uchar, sizeof(uchar), bmpP); /* rgbReserved: must be 0 */
 
-        //  palette[1]: foreground of glyphs
+        /*   palette[1]: foreground of glyphs */
         uchar = 0;
         for(i=0; i<4; i++)
-                dwrite(&uchar, sizeof(uchar), bmpP); //palette[1]: #000000
+                dwrite(&uchar, sizeof(uchar), bmpP); /* palette[1]: #000000 */
 
-        //  palette[2]: spacing
+        /*   palette[2]: spacing */
         uchar = COLOR_SPACING_BLUE;
-        dwrite(&uchar, sizeof(uchar), bmpP); //B
+        dwrite(&uchar, sizeof(uchar), bmpP); /* B */
         uchar = COLOR_SPACING_GREEN;
-        dwrite(&uchar, sizeof(uchar), bmpP); //G
+        dwrite(&uchar, sizeof(uchar), bmpP); /* G */
         uchar = COLOR_SPACING_RED;
-        dwrite(&uchar, sizeof(uchar), bmpP); //R
+        dwrite(&uchar, sizeof(uchar), bmpP); /* R */
         uchar = 0;
-        dwrite(&uchar, sizeof(uchar), bmpP); //must be 0
+        dwrite(&uchar, sizeof(uchar), bmpP); /* must be 0 */
 
-        //  palette[3]: out of dwidth
+        /*   palette[3]: out of dwidth */
         uchar = COLOR_DWIDTH_BLUE;
-        dwrite(&uchar, sizeof(uchar), bmpP); //B
+        dwrite(&uchar, sizeof(uchar), bmpP); /* B */
         uchar = COLOR_DWIDTH_GREEN;
-        dwrite(&uchar, sizeof(uchar), bmpP); //G
+        dwrite(&uchar, sizeof(uchar), bmpP); /* G */
         uchar = COLOR_DWIDTH_RED;
-        dwrite(&uchar, sizeof(uchar), bmpP); //R
+        dwrite(&uchar, sizeof(uchar), bmpP); /* R */
         uchar = 0;
-        dwrite(&uchar, sizeof(uchar), bmpP); //must be 0
-                
-        //  palette[4] to palette[255]: not used
+        dwrite(&uchar, sizeof(uchar), bmpP); /* must be 0 */
+
+        /*   palette[4] to palette[255]: not used */
         for(i=4; i<256; i++){
                 uchar = 0x00;
                 dwrite(&uchar, sizeof(uchar), bmpP);
                 dwrite(&uchar, sizeof(uchar), bmpP);
                 dwrite(&uchar, sizeof(uchar), bmpP);
-                dwrite(&uchar, sizeof(uchar), bmpP); //palette[4to255]: #000000
+                dwrite(&uchar, sizeof(uchar), bmpP); /* palette[4to255]: #000000 */
         }
 
         /*
@@ -247,23 +277,23 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         for(y=bmph-1; y>=0; y--){
                 for(x=0; x<bmpw+bmppad; x++){
                         if(x>=bmpw){
-                                //padding: long(4bytes) aligned
-                                uchar = 0; //must pad with 0
+                                /* padding: long(4bytes) aligned */
+                                uchar = 0; /* must pad with 0 */
                                 dwrite(&uchar, sizeof(uchar), bmpP);
                         }else{
                                 if( (y%(font.h+spacing)<spacing) || (x%(font.w+spacing)<spacing) ){
-                                        //spacing
-                                        uchar = 2; //fill palette[2]
+                                        /* spacing */
+                                        uchar = 2; /* fill palette[2] */
                                         dwrite(&uchar, sizeof(uchar), bmpP);
                                 }else{
-                                        //read bitmapAREA & write bmpFile
+                                        /* read bitmapAREA & write bmpFile */
                                         g = (x/(font.w+spacing)) + (y/(font.h+spacing)*colchar);
                                         bx = x - (spacing*(g%colchar)) - spacing;
                                         by = y - (spacing*(g/colchar)) - spacing;
                                         tmp = g*(font.h*font.w) + (by%font.h)*font.w + (bx%font.w);
                                         if(tmp >= chars*font.h*font.w){
-                                                //spacing over the last glyph
-                                                uchar = 2; //fill palette[2]
+                                                /* spacing over the last glyph */
+                                                uchar = 2; /* fill palette[2] */
                                         }else
                                                 uchar = *( bitmapP + tmp);
                                         dwrite(&uchar, sizeof(uchar), bmpP);
@@ -274,7 +304,7 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         return;
 }
 
-        
+
 
 
 /*
@@ -285,24 +315,24 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
                 "0000","0001","0010","0011","0100","0101","0110","0111",
                 "1000","1001","1010","1011","1100","1101","1110","1111"
         };
-        int d; //decimal number translated from hexNumber
-        int hexlen; //a line length(without newline code)
-        char binP[LINE_CHARMAX]; //binary strings translated from decimal number
-        static int nowchar = 0; //number of glyphs handlled until now
+        int d; /* decimal number translated from hexNumber */
+        int hexlen; /* a line length(without newline code) */
+        char binP[LINE_CHARMAX]; /* binary strings translated from decimal number */
+        static int nowchar = 0; /* number of glyphs handlled until now */
         char *tmpP;
         char tmpsP[LINE_CHARMAX];
-        int bitAh, bitAw; //bitA width, height
-        int offtop, offbottom, offright, offleft; //glyph offset
+        int bitAh, bitAw; /* bitA width, height */
+        int offtop, offbottom, offright, offleft; /* glyph offset */
         unsigned char *bitAP;
         unsigned char *bitBP;
         int i,j,x,y;
-        
+
         /*
          * 2.1) change hexadecimal strings to a bitmap of glyph( called bitA)
          */
         tmpP = strstr(glyphP, "\n");
         if(tmpP == NULL){
-                //if there is BITMAP\nENDCHAR in a given bdf-file(e.g. UTRG__18.bdf)
+                /* if there is BITMAP\nENDCHAR in a given bdf-file */
                 *glyphP = '0';
                 *(glyphP+1) = '0';
                 *(glyphP+2) = '\n';
@@ -312,7 +342,7 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
         hexlen = tmpP - glyphP;
         bitAw = hexlen * 4;
         bitAh = sizeglyphP / (hexlen+1);
-        bitAP = malloc(bitAw * bitAh); //address of bitA
+        bitAP = malloc(bitAw * bitAh); /* address of bitA */
         if(bitAP == NULL){
                 printf("error bitA malloc\n");
                 exit(EXIT_FAILURE);
@@ -321,9 +351,9 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
                 if(glyphP[i] == '\n'){
                         x=0; y++;
                 }else{
-                        sprintf(tmpsP, "0x%c", glyphP[i]); //get one character from hexadecimal strings
+                        sprintf(tmpsP, "0x%c", glyphP[i]); /* get one character from hexadecimal strings */
                         d = (int)strtol(tmpsP,(char **)NULL, 16);
-                        strcpy(binP, hex2binP[d]); //change hexa strings to bin strings
+                        strcpy(binP, hex2binP[d]); /* change hexa strings to bin strings */
                         for(j=0; j<4; j++,x++){
                                 if( bitAP+y*bitAw+x > bitAP+bitAw*bitAh ){
                                         printf("error: bitA pointer\n");
@@ -339,7 +369,7 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
          * 2.2)make another bitmap area(called bitB)
          *      bitB is sized to FONTBOUNDINGBOX
          */
-        bitBP = malloc(font.w * font.h); //address of bitB
+        bitBP = malloc(font.w * font.h); /* address of bitB */
         if(bitBP == NULL){
                 printf("error bitB malloc\n");
                 exit(EXIT_FAILURE);
@@ -347,12 +377,12 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
         for(i=0; i<font.h; i++){
                 for(j=0; j<font.w; j++){
                         if(dwflag == OFF){
-                                *(bitBP + i*font.w + j) = 0; //fill palette[0]
+                                *(bitBP + i*font.w + j) = 0; /* fill palette[0] */
                         }else{
                                 if( (j < (-1)*font.offx) || (j >= (-1)*font.offx+dw))
-                                        *(bitBP + i*font.w + j) = 3; //fill palette[3]
+                                        *(bitBP + i*font.w + j) = 3; /* fill palette[3] */
                                 else
-                                        *(bitBP + i*font.w + j) = 0; //fill palette[0]
+                                        *(bitBP + i*font.w + j) = 0; /* fill palette[0] */
                         }
                 }
         }
@@ -363,18 +393,18 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
          *      a scope beyond bitA is already filled with palette[0or3]
          */
         offleft = (-1)*font.offx + glyph.offx;
-        //offright = font.w - glyph.w - offleft;
+        /* offright = font.w - glyph.w - offleft; */
 
         offbottom = (-1)*font.offy + glyph.offy;
         offtop = font.h - glyph.h - offbottom;
 
         for(i=0; i<font.h; i++){
                 if( i<offtop || i>=offtop+glyph.h )
-                        ; //do nothing
+                        ; /* do nothing */
                 else
                         for(j=0; j<font.w; j++)
                                 if( j<offleft || j>=offleft+glyph.w )
-                                        ; //do nothing
+                                        ; /* do nothing */
                                 else
                                         *(bitBP + i*font.w + j) = *(bitAP + (i-offtop)*bitAw + (j-offleft));
         }
@@ -399,7 +429,7 @@ int getline(char* lineP, int max, FILE* inputP){
         if (fgets(lineP, max, inputP) == NULL)
                 return 0;
         else
-                return strlen(lineP); //fgets returns strings included '\n'
+                return strlen(lineP); /* fgets returns strings included '\n' */
 }
 
 
@@ -409,27 +439,27 @@ int getline(char* lineP, int max, FILE* inputP){
 unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
         int i;
         int length;
-        char sP[LINE_CHARMAX]; //one line(strings) from bdf-font-file
-        static int cnt; //only used in debugging: counter of appeared glyphs
-        struct boundingbox glyph; //an indivisual glyph width, height,offset x,y
-        int flagBitmap = OFF; //this line is bitmap-data?(ON) or no?(OFF)
-        char *tokP; //top address of a token from strings
-        char *glyphP = NULL; //temporal buffer of bitmap-data(hexadecimal strings)
-        char* nextP = NULL; //address of writing next in glyphP
-        int dw = 0; //dwidth
-        static int bdfflag = OFF; //the given bdf-file is valid or not
+        char sP[LINE_CHARMAX]; /* one line(strings) from bdf-font-file */
+        static int cnt; /* only used in debugging: counter of appeared glyphs */
+        struct boundingbox glyph; /* an indivisual glyph width, height,offset x,y */
+        int flagBitmap = OFF; /* this line is bitmap-data?(ON) or no?(OFF) */
+        char *tokP; /* top address of a token from strings */
+        char *glyphP = NULL; /* temporal buffer of bitmap-data(hexadecimal strings) */
+        char* nextP = NULL; /* address of writing next in glyphP */
+        int dw = 0; /* dwidth */
+        static int bdfflag = OFF; /* the given bdf-file is valid or not */
 
         while(1){
                 length = getline(sP, LINE_CHARMAX, readP);
                 if((bdfflag == OFF) && (length == 0)){
-                        //given input-file is not a bdf-file
+                        /* given input-file is not a bdf-file */
                         printf("error: input-file is not a bdf file\n");
                         exit(EXIT_FAILURE);
                 }
                 if(length == 0)
-                        break; //escape from while-loop
+                        break; /* escape from while-loop */
 
-                //remove carraige-return(CR)
+                /* remove carriage-return(CR) */
                 for(i=0; i<length; i++){
                         if(sP[i] == '\r'){
                                 sP[i] = '\n';
@@ -437,16 +467,16 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                         }
                 }
 
-                //classify from the top character of sP
+                /* classify from the top character of sP */
                 switch(sP[0]){
                 case 'S':
                         if(bdfflag == OFF){
-                                //top of the bdf-file
+                                /* top of the bdf-file */
                                 if(strncmp(sP, "STARTFONT ", 10) == 0){
                                         bdfflag = ON;
                                         d_printf("startfont exists %d\n", bdfflag);
                                 }else{
-                                        //given input-file is not a bdf-file
+                                        /* given input-file is not a bdf-file */
                                         printf("error: input-file is not a bdf file\n");
                                         exit(EXIT_FAILURE);
                                 }
@@ -454,14 +484,14 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                         break;
                 case 'F':
                         if(strncmp(sP, "FONTBOUNDINGBOX ", 16) == 0){
-                                // 16 means no comparing '\0'
+                                /*  16 means no comparing '\0' */
 
-                                //get font.w, font.h, font.offx, and font.offy
-                                tokP = strtok(sP, " ");//tokP addresses next space of FONTBOUNDINGBOX
-                                tokP += (strlen(tokP)+1);//tokP addresses top character of width in FONTBOUNDINGBOX
-                                tokP = strtok(tokP, " ");//set NUL on space after width
+                                /* get font.w, font.h, font.offx, and font.offy */
+                                tokP = strtok(sP, " ");/* tokP addresses next space of FONTBOUNDINGBOX */
+                                tokP += (strlen(tokP)+1);/* tokP addresses top character of width in FONTBOUNDINGBOX */
+                                tokP = strtok(tokP, " ");/* set NUL on space after width */
                                 font.w = atoi(tokP);
-                                tokP += (strlen(tokP)+1);//height in FONTBOUNDINGBOX
+                                tokP += (strlen(tokP)+1);/* height in FONTBOUNDINGBOX */
                                 tokP = strtok(tokP, " ");
                                 font.h = atoi(tokP);
                                 tokP += (strlen(tokP)+1);
@@ -479,7 +509,7 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                         break;
                 case 'C':
                         if(strncmp(sP, "CHARS ", 6) == 0){
-                                //get chars
+                                /* get chars */
                                 tokP = strtok(sP, " ");
                                 tokP += (strlen(tokP)+1);
                                 tokP = strtok(tokP, "\n");
@@ -487,7 +517,7 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                                 v_printf("  Total glyphs = %d\n",chars);
                                 cnt=0;
 
-                                //allocate bitmapAREA
+                                /* allocate bitmapAREA */
                                 bitmapP = (unsigned char*)malloc(chars * font.h * font.w );
                                 if(bitmapP == NULL){
                                         printf("error malloc\n");
@@ -498,7 +528,7 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                         break;
                 case 'D':
                         if(strncmp(sP, "DWIDTH ", 7) == 0){
-                                //get dw
+                                /* get dw */
                                 tokP = strtok(sP, " ");
                                 tokP += (strlen(tokP)+1);
                                 tokP = strtok(tokP, " ");
@@ -508,34 +538,34 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                         break;
                 case 'B':
                         if(strncmp(sP, "BITMAP", 6) == 0){
-                                //allocate glyphP
-                                glyphP = (char*)malloc(font.w*font.h); //allocate more room
+                                /* allocate glyphP */
+                                glyphP = (char*)malloc(font.w*font.h); /* allocate more room */
                                 if(glyphP == NULL){
                                         printf("error malloc bdf\n");
                                         exit(EXIT_FAILURE);
                                 }
-                                memset(glyphP, 0, font.w*font.h); //zero clear
+                                memset(glyphP, 0, font.w*font.h); /* zero clear */
                                 nextP = glyphP;
                                 flagBitmap = ON;
                         }else if(strncmp(sP, "BBX ", 4) == 0){
-                                //get glyph.offx, glyph.offy, glyph.w, and glyph.h
-                                tokP = strtok(sP, " ");//space after 'BBX'
-                                tokP += (strlen(tokP)+1);//top of width
-                                tokP = strtok(tokP, " ");//set NUL on space after width
+                                /* get glyph.offx, glyph.offy, glyph.w, and glyph.h */
+                                tokP = strtok(sP, " ");/* space after 'BBX' */
+                                tokP += (strlen(tokP)+1);/* top of width */
+                                tokP = strtok(tokP, " ");/* set NUL on space after width */
                                 glyph.w = atoi(tokP);
-                                tokP += (strlen(tokP)+1);//height
+                                tokP += (strlen(tokP)+1);/* height */
                                 tokP = strtok(tokP, " ");
                                 glyph.h = atoi(tokP);
-                                tokP += (strlen(tokP)+1);//offx
+                                tokP += (strlen(tokP)+1);/* offx */
                                 tokP = strtok(tokP, " ");
                                 glyph.offx = atoi(tokP);
-                                tokP += (strlen(tokP)+1);//offy
+                                tokP += (strlen(tokP)+1);/* offy */
                                 tokP = strtok(tokP, "\n");
                                 glyph.offy = atoi(tokP);
-                                //d_printf("glyph width=%dpixels ",glyph.w);
-                                //d_printf("height=%dpixels\n",glyph.h);
-                                //d_printf("glyph offset x=%dpixels ",glyph.offx);
-                                //d_printf("y=%dpixels\n",glyph.offy);
+                                /* d_printf("glyph width=%dpixels ",glyph.w); */
+                                /* d_printf("height=%dpixels\n",glyph.h); */
+                                /* d_printf("glyph offset x=%dpixels ",glyph.offx); */
+                                /* d_printf("y=%dpixels\n",glyph.offy); */
                         }else
                                 STOREBITMAP();
                         break;
@@ -553,27 +583,26 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
                 default:
                         STOREBITMAP();
                         break;
-                }//switch
-        }//while
-        //'break' goto here
+                }/* switch */
+        }/* while */
+        /* 'break' goto here */
         return bitmapP;
 }
 
 
 /*
- * 
+ *
  */
 void printhelp(void){
-        printf("bdf2bmp version 0.5.2\n");
+        printf("bdf2bmp version 0.5.3\n");
         printf("Usage: bdf2bmp [-option] input-bdf-file output-bmp-file\n");
         printf("Option:\n");
         printf("  -sN    spacing N pixels (default N=2)\n");
-        printf("             N is limited from 0 to 32\n");
-        printf("             DO NOT INSERT SPACE BETWEEN 's' AND 'N'\n");
+        printf("             N value can range from 0 to 32\n");
         printf("  -cN    specifying N colomns in grid (default N=32)\n");
-        printf("             N is limited from 1 to 4096\n");
-        printf("             DO NOT INSERT SPACE BETWEEN 'c' AND 'N'\n");
+        printf("             N value can range from 1 to 1024\n");
         printf("  -w     showing glyph widths with a gray color\n");
+        printf("  -i     prompting whether to overwrite an existing file\n");
         printf("  -h     print help\n");
         exit(EXIT_FAILURE);
 }
@@ -588,35 +617,103 @@ int main(int argc, char *argv[]){
         FILE *writeP;
         char readFilename[FILENAME_CHARMAX] = "input.bdf";
         char writeFilename[FILENAME_CHARMAX] = "output.bmp";
-        int tmp, i;
-        unsigned char *bitmapP = NULL; //address of bitmapAREA
-        int spacing = 2; //breadth of spacing (default 2)
+        int i, j, tmp, n, dst, c;
+        char *sP;
+        unsigned char *bitmapP = NULL; /* address of bitmapAREA */
+        int spacing = 2; /* breadth of spacing (default 2) */
         int flag;
-        int colchar = 32; //number of columns(horizontal) (default 32)
+        int colchar = 32; /* number of columns(horizontal) (default 32) */
+        char paramP[PARAM_MAX][LINE_CHARMAX]; /* parameter strings */
+        int iflag = OFF;
+        struct stat fileinfo;
 
-        //deal with arguments
+        /*
+         * deal with arguments
+         */
         if(argc < 2){
-                //printf("error: not enough arguments\n");
+                /* printf("error: not enough arguments\n"); */
                 printhelp();
         }
-        for(i=1, flag=0; i<argc; i++){
-                switch( argv[i][0] ){
+
+        /* formatting arguments */
+        sP = calloc(LINE_CHARMAX, sizeof(char));
+        if(sP == NULL){
+                printf("error\n");
+                exit(1);
+        }
+        for(i=1,dst=0,n=0; i<argc; i++){
+                if(argv[i][0] == '-'){
+                        /* command-line options */
+                        for(j=1; j<(int)strlen(argv[i]); j++){
+                                if(argv[i][j]=='w' ||
+                                   argv[i][j]=='i' ||
+                                   argv[i][j]=='h' ||
+                                   argv[i][j]=='v')
+                                {
+                                        *(sP+dst) = '-'; dst++;
+                                        *(sP+dst) = argv[i][j]; dst++;
+                                        *(sP+dst) = '\0';
+                                        strcpy(paramP[n], sP); dst=0; n++;
+                                        memset(sP,0,LINE_CHARMAX);
+                                        if(n >= PARAM_MAX){
+                                                printf("error: too many arguments\n");
+                                                exit(EXIT_FAILURE);
+                                        }
+
+                                }else if( (argv[i][j]=='s') ||
+                                          (argv[i][j]=='c'))
+                                {
+                                        *(sP+dst) = '-'; dst++;
+                                        *(sP+dst) = argv[i][j]; dst++;
+                                }else if(argv[i][j+1]=='\0'){
+                                        *(sP+dst) = argv[i][j]; dst++;
+                                        *(sP+dst) = '\0';
+                                        strcpy(paramP[n], sP); dst=0; n++;
+                                        if(n >= PARAM_MAX){
+                                                printf("error: too many arguments\n");
+                                                exit(EXIT_FAILURE);
+                                        }
+                                }else{
+                                        *(sP+dst) = argv[i][j]; dst++;
+                                }
+                        }
+                }else{
+                        /* not command-line options */
+                        for(j=0; j<(int)strlen(argv[i]); j++){
+                                *(sP+dst) = argv[i][j]; dst++;
+                        }
+                        *(sP+dst) = '\0';
+                        strcpy(paramP[n], sP); dst=0; n++;
+                        memset(sP,0,LINE_CHARMAX);
+                        if(n >= PARAM_MAX){
+                                printf("error: too many arguments\n");
+                                exit(EXIT_FAILURE);
+                        }
+                }
+        }
+        free(sP);
+
+        /* interpretting arguments */
+        for(i=0, flag=0; i<n; i++){
+                switch( paramP[i][0] ){
                 case '-':
-                        if(argv[i][1] == 's')
-                                spacing = atoi(&argv[i][2]);
-                        else if(argv[i][1] == 'c')
-                                colchar = atoi(&argv[i][2]);
-                        else if(argv[i][1] == 'w')
+                        if(paramP[i][1] == 's')
+                                spacing = atoi(&paramP[i][2]);
+                        else if(paramP[i][1] == 'c')
+                                colchar = atoi(&paramP[i][2]);
+                        else if(paramP[i][1] == 'w')
                                 dwflag = ON;
-                        else if( (argv[i][1]=='v') || (argv[i][1]=='h'))
+                        else if(paramP[i][1] == 'i')
+                                iflag = ON;
+                        else if( (paramP[i][1]=='v') || (paramP[i][1]=='h'))
                                 printhelp();
                         break;
                 default:
                         if(flag == 0){
-                                strcpy(readFilename, argv[i]);
+                                strcpy(readFilename, paramP[i]);
                                 flag ++;
                         }else{
-                                strcpy(writeFilename, argv[i]);
+                                strcpy(writeFilename, paramP[i]);
                                 if(strcmp(readFilename, writeFilename) == 0){
                                         printf("error: input-filename and output-filename are same\n");
                                         exit(EXIT_FAILURE);
@@ -633,39 +730,55 @@ int main(int argc, char *argv[]){
                 exit(EXIT_FAILURE);
         }
 
-        //colchar is limited from 1 to 4096
+        /* colchar is limited from 1 to 1024 */
         if(colchar  < 1)
                 colchar = 1;
-        else if(colchar > 4096)
-                colchar = 4096;
+        else if(colchar > 1024)
+                colchar = 1024;
 
-        //spacing is limited from 0 to 32
+        /* spacing is limited from 0 to 32 */
         if(spacing < 0)
                 spacing = 0;
         else if(spacing > 32)
                 spacing = 32;
 
-        //prepare to read&write files
+        /* checkEndian */
+        checkEndian();
+
+        /*
+         * prepare to read&write files
+         */
         readP = fopen(readFilename, "r");
         if(readP == NULL){
-                printf("error: %s does not exist\n", readFilename);
+                printf("error: '%s' does not exist\n", readFilename);
                 exit(EXIT_FAILURE);
+        }
+        /* Does writeFilename already exist? */
+        if((iflag==ON) && (stat(writeFilename, &fileinfo)==0)){
+                fprintf(stderr, "bdf2bmp: overwrite '%s'? ", writeFilename);
+                c = fgetc(stdin);
+                if((c=='y') || (c=='Y'))
+                        ; /* go next */
+                else
+                        /* printf("not overwrite\n"); */
+                        exit(EXIT_FAILURE);
         }
         writeP=fopen(writeFilename, "wb");
         if(writeP == NULL){
-                printf("error: cannot write %s\n", writeFilename);
+                printf("error: cannot write '%s'\n", writeFilename);
                 exit(EXIT_FAILURE);
         }
 
-        //read bdf-font-file
+
+        /* read bdf-font-file */
         bitmapP = readBdfFile(bitmapP, readP);
         fclose(readP);
 
-        //write bmp-image-file
+        /* write bmp-image-file */
         writeBmpFile(bitmapP, spacing, colchar, writeP);
         tmp = fclose(writeP);
         if(tmp == EOF){
-                printf("error: cannot write %s\n", writeFilename);
+                printf("error: cannot write '%s'\n", writeFilename);
                 free(bitmapP);
                 exit(EXIT_FAILURE);
         }

@@ -1,7 +1,10 @@
-bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
-version: 0.5.2
-date:    Thu Jan 04 00:54:00 2001
-author:  ITOU Hiroki (itouh@lycos.ne.jp)
+/*
+ * bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
+ * version: 0.5.3
+ * date:    Tue Jan 09 17:50:20 2001
+ * author:  ITOU Hiroki (itouh@lycos.ne.jp)
+ */
+
 
 SYNOPSIS
         bdf2bmp [-options ...] input-BDF-file output-BMP-file
@@ -11,36 +14,34 @@ DESCRIPTION
         all the glyph-images in a BDF-font-file.  That BMP file
         is a kind of Windows-type, 256 colors(8bitsPerPixel).
 
-        You need to be careful that this utility always
-        overwrites the output-file even if there is a
-        same-name file.
-
 OPTIONS
         bdf2bmp accepts command line options listed below:
 
         -s<number>
                 This option specifies the width of spacing.
-                <number> is limited from 0 to 32.  The default
-                is 2.  DO NOT INSERT SPACE BETWEEN 's' AND
-                number.
+                <number> can range from 0 to 32.  The default
+                is 2.
 
         -c<number>
                 This option specifies the number of columns in
-                grid.  <number> is limited from 1 to 4096.
-                The default is 32.  DO NOT INSERT SPACE BETWEEN
-                's' AND number.
+                grid.  <number> can range from 1 to 1024.  The
+                default is 32.
 
         -w
                 This option directs to show the widths of
                 glyphs with a gray color.
 
+        -i
+                This option directs to prompt whether to
+                overwrite an existing file.
+
         -h
                 This option directs to print help.
 
 EXAMPLES
-        $  bdf2bmp -s3 -c16 courR18.bdf courR18.bmp
+        $  bdf2bmp -s 3 -c 16 courR18.bdf courR18.bmp
 
-        $  bdf2bmp -w xc/fonts/bdf/75dpi/timI18.bdf output.bmp
+        $  bdf2bmp -wi xc/fonts/bdf/75dpi/timI18.bdf s.bmp
 
 COMPILE
         The author succeeded compiling this source-code and
@@ -49,15 +50,12 @@ COMPILE
 
                 Windows98 SecondEdition +
                 Borland C++ Compiler 5.5.1 for Win32
+        on
+                IBM-PC compatible, Intel Celeron 433MHz
 
-        This source-code is almost written in ANSI C style.
-        ( The exception is a comment-format.  The comments is
-        written in C++ style. )
+        This source-code is written in ANSI C style.
         So, you can probably compile and execute in other
         environments.
-
-        If your computer is MSB-first(BigEndian), please delete
-        the line 47 in the source-code that is "#define LSB".
 
         An example to compile and install in Linux system:
                 $  cc bdf2bmp.c -o bdf2bmp
