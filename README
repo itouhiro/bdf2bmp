@@ -1,7 +1,7 @@
 /*
  * bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
- * version: 0.5.3
- * date:    Tue Jan 09 17:50:20 2001
+ * version: 0.6
+ * date:    Wed Jan 10 23:59:03 2001
  * author:  ITOU Hiroki (itouh@lycos.ne.jp)
  */
 
@@ -19,21 +19,23 @@ OPTIONS
 
         -s<number>
                 This option specifies the width of spacing.
-                <number> can range from 0 to 32.  The default
-                is 2.
+                The <number> can range from 0 to 32.  The
+                default is 2.
 
         -c<number>
                 This option specifies the number of columns in
-                grid.  <number> can range from 1 to 1024.  The
-                default is 32.
+                grid.  The <number> can range from 1 to 1024.
+                The default is 32.
 
         -w
-                This option directs to show the widths of
-                glyphs with a gray color.
+                This option directs to show the baseline and
+                the widths of glyphs with gray colors.
 
         -i
                 This option directs to prompt whether to
-                overwrite an existing file.
+                overwrite an existing file.  If the response
+                does not begin with `y' or `Y', the file is
+                not overwritten.
 
         -h
                 This option directs to print help.

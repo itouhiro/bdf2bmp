@@ -1,7 +1,7 @@
 /*
  * bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
- * version: 0.5.3
- * date:    Tue Jan 09 17:50:20 2001
+ * version: 0.6
+ * date:    Wed Jan 10 23:59:03 2001
  * author:  ITOU Hiroki (itouh@lycos.ne.jp)
  */
 
@@ -31,14 +31,18 @@
  * SUCH DAMAGE.
  */
 
-/* modify if you like; color of spacing: default #a0a0c4 */
-#define COLOR_SPACING_RED 0xa0
-#define COLOR_SPACING_GREEN 0xa0
-#define COLOR_SPACING_BLUE 0xc4
-/* modify if you like; color of out-of-dwidth: default #d4d4dd */
-#define COLOR_DWIDTH_RED 0xd4
-#define COLOR_DWIDTH_GREEN 0xd4
-#define COLOR_DWIDTH_BLUE 0xdd
+/* modify if you want; color of spacing */
+#define COLOR_SPACING_RED 0x9a
+#define COLOR_SPACING_GREEN 0x9a
+#define COLOR_SPACING_BLUE 0xbd
+/* modify if you want; out-of-dwidth over baseline */
+#define COLOR_OVERBL_RED 0xca
+#define COLOR_OVERBL_GREEN 0xca
+#define COLOR_OVERBL_BLUE 0xd8
+/* modify if you want; out-of-dwidth under baseline */
+#define COLOR_UNDERBL_RED 0xde
+#define COLOR_UNDERBL_GREEN 0xde
+#define COLOR_UNDERBL_BLUE 0xe7
 
 #define VERBOSE
 
@@ -48,6 +52,7 @@
 #include <limits.h> /* strtol() */
 #include <sys/stat.h> /* stat() */
 #include <sys/types.h> /* stat ? */
+#include <ctype.h> /* isdigit() */
 
 #define LINE_CHARMAX 1000 /* number of max characters in bdf-font-file; number is without reason */
 #define FILENAME_CHARMAX 256 /* number of max characters in filenames;  number is without reason */
@@ -206,25 +211,28 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         /*
          * BITMAPINFOHEADER struct
          */
-        ulong = 40;
-        dwrite(&ulong, sizeof(ulong), bmpP); /* when Windows-BMP, this is 40 */
-        slong = bmpw;
-        dwrite(&slong, sizeof(slong), bmpP); /* biWidth */
-        slong = bmph;
-        dwrite(&slong, sizeof(slong), bmpP); /* biHeight: plus value -> down-top */
-        ushort = 1;
-        dwrite(&ushort, sizeof(ushort), bmpP); /* biPlanes: must be 1 */
-        ushort = 8;
-        dwrite(&ushort, sizeof(ushort), bmpP); /* biBitCount: 8bitColor */
-        ulong = 0;
-        dwrite(&ulong, sizeof(ulong), bmpP); /* biCompression: noCompression(BI_RGB) */
-        dwrite(&ulong, sizeof(ulong), bmpP); /* biSizeImage: when noComprsn, 0 is ok */
-        slong = 0;
-        dwrite(&slong, sizeof(slong), bmpP); /* biXPelsPerMeter: resolution x; 0 ok */
-        dwrite(&slong, sizeof(slong), bmpP); /* biYPelsPerMeter: res y; 0 is ok */
-        ulong = 0;
-        dwrite(&ulong, sizeof(ulong), bmpP); /* biClrUsed: optimized color palette; not used */
-        dwrite(&ulong, sizeof(ulong), bmpP); /* biClrImportant: 0 is ok */
+        ulong = 40; /* when Windows-BMP, this is 40 */
+        dwrite(&ulong, sizeof(ulong), bmpP);
+        slong = bmpw; /* biWidth */
+        dwrite(&slong, sizeof(slong), bmpP);
+        slong = bmph; /* biHeight: down-top */
+        dwrite(&slong, sizeof(slong), bmpP);
+        ushort = 1; /* biPlanes: must be 1 */
+        dwrite(&ushort, sizeof(ushort), bmpP);
+        ushort = 8; /* biBitCount: 8bitColor */
+        dwrite(&ushort, sizeof(ushort), bmpP);
+        ulong = 0; /* biCompression: noCompression(BI_RGB) */
+        dwrite(&ulong, sizeof(ulong), bmpP);
+        ulong = 0; /* biSizeImage: when noComprsn, 0 is ok */
+        dwrite(&ulong, sizeof(ulong), bmpP);
+        slong = 0; /* biXPelsPerMeter: resolution x; 0 ok */
+        dwrite(&slong, sizeof(slong), bmpP);
+        slong = 0; /* biYPelsPerMeter: res y; 0 is ok */
+        dwrite(&slong, sizeof(slong), bmpP);
+        ulong = 0; /* biClrUsed: optimized color palette; not used */
+        dwrite(&ulong, sizeof(ulong), bmpP);
+        ulong = 0; /* biClrImportant: 0 is ok */
+        dwrite(&ulong, sizeof(ulong), bmpP);
 
         /*
          * RGBQUAD[256]: color palette
@@ -233,7 +241,7 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         uchar = 0xff;
         dwrite(&uchar, sizeof(uchar), bmpP); /* rgbBlue: B */
         dwrite(&uchar, sizeof(uchar), bmpP); /* rgbGreen: G */
-        dwrite(&uchar, sizeof(uchar), bmpP); /* rgbRed: R;  palette[0]: #ffffff */
+        dwrite(&uchar, sizeof(uchar), bmpP); /* rgbRed: R */
         uchar = 0;
         dwrite(&uchar, sizeof(uchar), bmpP); /* rgbReserved: must be 0 */
 
@@ -252,23 +260,33 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         uchar = 0;
         dwrite(&uchar, sizeof(uchar), bmpP); /* must be 0 */
 
-        /*   palette[3]: out of dwidth */
-        uchar = COLOR_DWIDTH_BLUE;
+        /*   palette[3]: out of dwidth over baseline */
+        uchar = COLOR_OVERBL_BLUE;
         dwrite(&uchar, sizeof(uchar), bmpP); /* B */
-        uchar = COLOR_DWIDTH_GREEN;
+        uchar = COLOR_OVERBL_GREEN;
         dwrite(&uchar, sizeof(uchar), bmpP); /* G */
-        uchar = COLOR_DWIDTH_RED;
+        uchar = COLOR_OVERBL_RED;
         dwrite(&uchar, sizeof(uchar), bmpP); /* R */
         uchar = 0;
         dwrite(&uchar, sizeof(uchar), bmpP); /* must be 0 */
 
-        /*   palette[4] to palette[255]: not used */
-        for(i=4; i<256; i++){
-                uchar = 0x00;
+        /*   palette[4]: out of dwidth; under baseline */
+        uchar = COLOR_UNDERBL_BLUE;
+        dwrite(&uchar, sizeof(uchar), bmpP); /* B */
+        uchar = COLOR_UNDERBL_GREEN;
+        dwrite(&uchar, sizeof(uchar), bmpP); /* G */
+        uchar = COLOR_UNDERBL_RED;
+        dwrite(&uchar, sizeof(uchar), bmpP); /* R */
+        uchar = 0;
+        dwrite(&uchar, sizeof(uchar), bmpP); /* must be 0 */
+
+        /*   palette[5] to palette[255]: not used */
+        for(i=5; i<256; i++){
+                uchar = 0x00; /* palette[5to255]: #000000 */
                 dwrite(&uchar, sizeof(uchar), bmpP);
                 dwrite(&uchar, sizeof(uchar), bmpP);
                 dwrite(&uchar, sizeof(uchar), bmpP);
-                dwrite(&uchar, sizeof(uchar), bmpP); /* palette[4to255]: #000000 */
+                dwrite(&uchar, sizeof(uchar), bmpP);
         }
 
         /*
@@ -322,7 +340,7 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
         char *tmpP;
         char tmpsP[LINE_CHARMAX];
         int bitAh, bitAw; /* bitA width, height */
-        int offtop, offbottom, offright, offleft; /* glyph offset */
+        int offtop, offbottom, offleft; /* glyph offset */
         unsigned char *bitAP;
         unsigned char *bitBP;
         int i,j,x,y;
@@ -377,12 +395,22 @@ void assignBitmap(unsigned char *bitmapP, char *glyphP, int sizeglyphP, struct b
         for(i=0; i<font.h; i++){
                 for(j=0; j<font.w; j++){
                         if(dwflag == OFF){
-                                *(bitBP + i*font.w + j) = 0; /* fill palette[0] */
+                                /* all in boundingbox: palette[0] */
+                                *(bitBP + i*font.w + j) = 0;
                         }else{
-                                if( (j < (-1)*font.offx) || (j >= (-1)*font.offx+dw))
-                                        *(bitBP + i*font.w + j) = 3; /* fill palette[3] */
-                                else
-                                        *(bitBP + i*font.w + j) = 0; /* fill palette[0] */
+                                /* show the baselines and widths of glyphs */
+                                if( (j < (-1)*font.offx) || (j >= (-1)*font.offx+dw)){
+                                        if(i < font.h -  (-1)*font.offy){
+                                                /* over baseline: palette[3] */
+                                                *(bitBP + i*font.w + j) = 3;
+                                        }else{
+                                                /* under baseline: palette[4] */
+                                                *(bitBP + i*font.w + j) = 4;
+                                        }
+                                }else{
+                                        /* in dwidth: palette[0] */
+                                        *(bitBP + i*font.w + j) = 0;
+                                }
                         }
                 }
         }
@@ -444,7 +472,7 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
         struct boundingbox glyph; /* an indivisual glyph width, height,offset x,y */
         int flagBitmap = OFF; /* this line is bitmap-data?(ON) or no?(OFF) */
         char *tokP; /* top address of a token from strings */
-        char *glyphP = NULL; /* temporal buffer of bitmap-data(hexadecimal strings) */
+        char *glyphP = NULL; /* bitmap-data(hexadecimal strings) */
         char* nextP = NULL; /* address of writing next in glyphP */
         int dw = 0; /* dwidth */
         static int bdfflag = OFF; /* the given bdf-file is valid or not */
@@ -594,14 +622,15 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
  *
  */
 void printhelp(void){
-        printf("bdf2bmp version 0.5.3\n");
+        printf("bdf2bmp version 0.6\n");
         printf("Usage: bdf2bmp [-option] input-bdf-file output-bmp-file\n");
         printf("Option:\n");
         printf("  -sN    spacing N pixels (default N=2)\n");
         printf("             N value can range from 0 to 32\n");
         printf("  -cN    specifying N colomns in grid (default N=32)\n");
         printf("             N value can range from 1 to 1024\n");
-        printf("  -w     showing glyph widths with a gray color\n");
+        printf("  -w     showing the baseline and the widths of glyphs\n");
+        printf("             with gray colors\n");
         printf("  -i     prompting whether to overwrite an existing file\n");
         printf("  -h     print help\n");
         exit(EXIT_FAILURE);
@@ -665,7 +694,11 @@ int main(int argc, char *argv[]){
                                 {
                                         *(sP+dst) = '-'; dst++;
                                         *(sP+dst) = argv[i][j]; dst++;
-                                }else if(argv[i][j+1]=='\0'){
+                                }else if( isdigit(argv[i][j]) == 0 ){
+                                        /* not [0-9] */
+                                        printf("error: invalid option -- '%c'\n", argv[i][j]);
+                                        exit(EXIT_FAILURE);
+                                }else if( argv[i][j+1] == '\0' ){
                                         *(sP+dst) = argv[i][j]; dst++;
                                         *(sP+dst) = '\0';
                                         strcpy(paramP[n], sP); dst=0; n++;
@@ -750,7 +783,7 @@ int main(int argc, char *argv[]){
          */
         readP = fopen(readFilename, "r");
         if(readP == NULL){
-                printf("error: '%s' does not exist\n", readFilename);
+                printf("bdf2bmp: '%s' does not exist\n", readFilename);
                 exit(EXIT_FAILURE);
         }
         /* Does writeFilename already exist? */
