@@ -1,4 +1,4 @@
-//tested..OK
+#define DEBUG
 
 #include <stdio.h>  //printf(), fopen(), fwrite()
 #include <stdlib.h> //malloc(), EXIT_SUCCESS, strtol()
@@ -42,7 +42,7 @@ void bitmapAssign(unsigned char *bitmapP, unsigned char *lineP, int nowChar, int
 		sprintf(tmpP, "0x%c", lineP[i]); // 1文字ぬきだした
 		d = (int)strtol(tmpP,(char **)NULL, 16);
 		strcpy(binP, hex2binP[d]); //2進数にした(binPに代入)
-		d_printf("%s\n",binP);
+		//d_printf("%s\n",binP);
 		for(j=0; j<4; j++){
 			*(bitmapP + (nowChar*fbbxH*fbbxW) + (nowH*fbbxW) + (i*4) + j) = binP[j] - '0';
 		}
@@ -115,14 +115,14 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 			if(strncmp(sP, "BITMAP", 6) == 0){
 				flagBitmap = ON;
 				nowH = 0;
-				d_printf("flagBitmap=%d\n",flagBitmap);
+				//d_printf("flagBitmap=%d\n",flagBitmap);
 			}
 			break;
 		case 'E':
 			if(strncmp(sP, "ENDCHAR", 7) == 0){
 				flagBitmap = OFF;
 				nowChar ++;
-				d_printf("flagBitmap=%d\n",flagBitmap);
+				//d_printf("flagBitmap=%d\n",flagBitmap);
 			}
 			break;
 		default:
@@ -145,21 +145,28 @@ int getline(char* lineP, int max, FILE* inputP){
 		return strlen(lineP); //fgetsは'\n'を含めた文字列を返す
 }
 
-int main(void){
+int main(int argc, char *argv[]){
 	FILE *readP;
 	FILE *writeP;
 	char readFilename[FILENAME_CHARMAX] = "courr18.bdf";
-	char writeFilename[FILENAME_CHARMAX] = "bdf13.bin";
+	char writeFilename[FILENAME_CHARMAX] = "bdf14.bin";
 	int tmp;
 	unsigned char *bitmapP = NULL; //各glyphの BITMAPデータを格納する
 
+	if(argc != 3){
+		printf("error argc\n");
+		printf("ex)  bdf2bmp input.bdf output.bmp\n\n");
+		exit(-1);
+	}
 
 	//ファイルの読み書きの準備
+	strcpy(readFilename, argv[1]);
 	readP = fopen(readFilename, "r");
 	if(readP == NULL){
 		printf("error fopen r");
 		exit(-1);
 	}
+	strcpy(writeFilename, argv[2]);
 	writeP=fopen(writeFilename, "wb");
 	if(writeP == NULL){
 		printf("error fopen w");

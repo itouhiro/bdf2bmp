@@ -1,4 +1,6 @@
 //tested.. OK
+#define DEBUG
+
 #include <stdio.h>  //printf(), fopen(), fwrite()
 #include <stdlib.h> //malloc(), EXIT_SUCCESS, strtol()
 #include <string.h> //strcmp(), strcpy()
@@ -38,19 +40,38 @@ void readBdfFile(unsigned char *bitmapP, FILE *readP){
 		case 'F':
 			if(strncmp(sP, "FONTBOUNDINGBOX ", 16) == 0){
 				// 16にすれば '\0'は比較しない
-				//fbbxW と fbbxHを取得する
-				//fbbxW = atoi(strtok(sP, " "));
-				//fbbxH = atoi(strtok(sP, " "));
-				//d_printf("fbbxH=%d\n",fbbxH);
 
-				printf("get:%s\n",sP);
+				//fbbxW と fbbxHを取得する
+				char *firstP;//取得したい文字列の最初の文字の位置
+				char *lastP;//取得する文字列の最後の文字の位置
+
+				firstP = strstr(sP, " ");
+				*firstP = '\0'; //空白をNULLにする 実はしなくてもいいけど、とりあえずしておく
+				firstP++; //空白の次の文字(取得したい文字列の最初)を指す
+				lastP = strstr(firstP, " ");
+				*lastP = '\0'; //取得したい文字列の最後の文字をNULLにしておく atoiにわたすため
+				fbbxW = atoi(firstP);
+
+				firstP = lastP + 1; //次のtokenの最初の文字を指す
+				lastP = strstr(firstP, " ");
+				*lastP = '\0'; //次のtokenの最後の文字をNULLにしておく
+				fbbxH = atoi(firstP);
+				d_printf("fbbxW=%d\n",fbbxW);
+				d_printf("fbbxH=%d\n",fbbxH);
 			}
 			break;
 		case 'C':
 			if(strncmp(sP, "CHARS ", 6) == 0){
-				printf("get:%s\n",sP);
-				//chars = atoi(strtok(sP, " "));
-				//d_printf("chars=%d\n",chars);
+				char *firstP;//取得したい文字列の最初の文字の位置
+				char *lastP;//取得する文字列の最後の文字の位置
+
+				firstP = strstr(sP, " ");
+				*firstP = '\0'; //空白をNULLにする
+				firstP++; //空白の次の文字(取得したい文字列の最初)を指す
+				lastP = strstr(firstP, "\n"); //普通のBDFファイルなら「CHARS [0-9]*」のあとは '\n'が来るはず
+				*lastP = '\0'; //取得したい文字列の最後の文字をNULLにしておく atoiにわたすため
+				chars = atoi(firstP);
+				d_printf("chars=%d\n",chars);
 
 				//メモリをallocate(割り当て)する
 				//tmpP = malloc(chars * fbbxH * fbbxW );
@@ -64,19 +85,16 @@ void readBdfFile(unsigned char *bitmapP, FILE *readP){
 			break;
 		case 'B':
 			if(strncmp(sP, "BITMAP", 6) == 0){
-				printf("get:%s\n",sP);
-
-//				flagBitmap = ON;
-//				nowH = 0;
-//				d_printf("flagBitmap=%d\n",flagBitmap);
+				flagBitmap = ON;
+				nowH = 0;
+				d_printf("flagBitmap=%d\n",flagBitmap);
 			}
 			break;
 		case 'E':
 			if(strncmp(sP, "ENDCHAR", 7) == 0){
-				printf("get:%s\n",sP);
-//				flagBitmap = OFF;
-//				nowChar ++;
-//				d_printf("flagBitmap=%d\n",flagBitmap);
+				flagBitmap = OFF;
+				nowChar ++;
+				d_printf("flagBitmap=%d\n",flagBitmap);
 			}
 			break;
 		default:
