@@ -1,6 +1,6 @@
 // bdf2bmp  --  generate bmp-image-file from bdf-font-file
-// version: 0.4
-// date: Fri Dec 29 14:50:52 2000
+// version: 0.5
+// date: Sat Dec 30 14:48:05 2000
 // author: ITOU Hiroki (itouh@lycos.ne.jp)
 
 /*
@@ -33,6 +33,10 @@
 #define COLOR_SPACING_RED 0xa0
 #define COLOR_SPACING_GREEN 0xa0
 #define COLOR_SPACING_BLUE 0xc4
+//modify if you like; color of dwidth: default #d4d4dd
+#define COLOR_DWIDTH_RED 0xd4
+#define COLOR_DWIDTH_GREEN 0xd4
+#define COLOR_DWIDTH_BLUE 0xdd
 
 #define VERBOSE
 
@@ -75,14 +79,15 @@ struct boundingbox{
 };
 
 //global var
-struct boundingbox font; //global info
-static int chars; //number of Total glyphs
-unsigned long bmpTotalSize; //bmp filesize (byte)
+struct boundingbox font; //global boundingbox
+static int chars; //total number of glyphs in a bdf file
+static unsigned long bmpTotalSize; //bmp filesize (byte)
+static int dwflag = OFF; //device width; only used for proportional-fonts
 
 //func prototype
 unsigned char *mwrite(const void *_p, int n, unsigned char *dstP);
 unsigned char *assignBmp(unsigned char *bitmapP, int spacing, int colchar);
-void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP, struct boundingbox glyph);
+void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP, struct boundingbox glyph, int dw);
 int getline(char* lineP, int max, FILE* inputP);
 unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP);
 void printhelp(void);
@@ -210,14 +215,24 @@ unsigned char *assignBmp(unsigned char *bitmapP, int spacing, int colchar){
 	dstP = mwrite(&u_char, 1, dstP); //R
 	u_char = 0;
 	dstP = mwrite(&u_char, 1, dstP); //must be 0
+
+	//  palette[3]: dwidth
+	u_char = COLOR_DWIDTH_BLUE;
+	dstP = mwrite(&u_char, 1, dstP); //B
+	u_char = COLOR_DWIDTH_GREEN;
+	dstP = mwrite(&u_char, 1, dstP); //G
+	u_char = COLOR_DWIDTH_RED;
+	dstP = mwrite(&u_char, 1, dstP); //R
+	u_char = 0;
+	dstP = mwrite(&u_char, 1, dstP); //must be 0
 		
-	//  palette[3] to palette[255]: not used
-	for(i=3; i<256; i++){
+	//  palette[4] to palette[255]: not used
+	for(i=4; i<256; i++){
 		u_char = 0x00;
 		dstP = mwrite(&u_char, 1, dstP);
 		dstP = mwrite(&u_char, 1, dstP);
 		dstP = mwrite(&u_char, 1, dstP);
-		dstP = mwrite(&u_char, 1, dstP); //palette[3to255]: #000000
+		dstP = mwrite(&u_char, 1, dstP); //palette[4to255]: #000000
 	}
 
 	//IMAGE DATA array
@@ -258,7 +273,7 @@ unsigned char *assignBmp(unsigned char *bitmapP, int spacing, int colchar){
 
 
 //2. transfer bdf-font-file to bitmapAREA(onMemory) one glyph by one
-void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP, struct boundingbox glyph){
+void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP, struct boundingbox glyph, int dw){
 	static char* hex2binP[]= {
 		"0000","0001","0010","0011","0100","0101","0110","0111",
 		"1000","1001","1010","1011","1100","1101","1110","1111"
@@ -313,10 +328,22 @@ void assignBitmap(unsigned char *bitmapP, unsigned char *glyphP, int sizeglyphP,
 		printf("error bitB bitmap");
 		exit(EXIT_FAILURE);
 	}
-	memset(bitBP, 0, font.w*font.h); //fill palette[0]
+	//memset(bitBP, 0, font.w*font.h); //fill palette[0]
+	for(i=0; i<font.h; i++){
+		for(j=0; j<font.w; j++){
+			if(dwflag == OFF){
+				*(bitBP + i*font.w + j) = 0; //fill palette[0]
+			}else{
+				if( (j < (-1)*font.offx) || (j >= (-1)*font.offx+dw))
+					*(bitBP + i*font.w + j) = 3; //fill palette[3]
+				else
+					*(bitBP + i*font.w + j) = 0; //fill palette[0]
+			}
+		}
+	}
 
 	//2.3) copy bitA to bitB with shifting(under the offsets)
-	//   bitA(smaller) to bitB(bigger), a scope beyond bitA is already filled with palette[0]
+	//   bitA(smaller) to bitB(bigger), a scope beyond bitA is already filled with palette[0or3]
 	topoff = font.h - glyph.h - ((-1)*font.offy+glyph.offy);
 	leftoff = (-1)*font.offx + glyph.offx;
 	for(i=0; i<glyph.h; i++)
@@ -340,6 +367,7 @@ int getline(char* lineP, int max, FILE* inputP){
 		return strlen(lineP); //fgets returns strings included '\n'
 }
 
+//1. read BDF-file to transfer bitmap-data to assignBitmap()
 unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 	int length;
 	char sP[LINE_CHARMAX]; //one line(strings) from bdf-font-file
@@ -350,6 +378,7 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 	char *tokP; //top address of a token from strings
 	char *glyphP = NULL; //temporal buffer of bitmap-data(hexadecimal strings)
 	char* nextP; //address of writing next in glyphP
+	int dw; //dwidth
 
 	while(1){
 		length = getline(sP, LINE_CHARMAX, readP);
@@ -403,6 +432,16 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 			}else
 				STOREBITMAP();
 			break;
+		case 'D':
+			if(strncmp(sP, "DWIDTH ", 7) == 0){
+				//get dw
+				tokP = strtok(sP, " ");
+				tokP += (strlen(tokP)+1);
+				tokP = strtok(tokP, " ");
+				dw = atoi(tokP);
+			}else
+				STOREBITMAP();
+			break;
 		case 'B':
 			if(strncmp(sP, "BITMAP", 6) == 0){
 				//allocate glyphP
@@ -441,7 +480,7 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 			if(strncmp(sP, "ENDCHAR", 7) == 0){
 				d_printf("\nglyph %d\n", cnt);
 				d_printf("%s\n",glyphP);
-				assignBitmap(bitmapP, glyphP, nextP - glyphP, glyph);
+				assignBitmap(bitmapP, glyphP, nextP - glyphP, glyph, dw);
 				flagBitmap = OFF;
 				//d_printf("nextP-glyphP=%d\n",nextP-glyphP);
 				free(glyphP);
@@ -460,7 +499,7 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 
 
 void printhelp(void){
-	printf("bdf2bmp version 0.4\n");
+	printf("bdf2bmp version 0.5\n");
 	printf("Usage: bdf2bmp [-option] input-bdf-file output-bmp-file\n");
 	printf("Option:\n");
 	printf("  -sN    spacing N pixels (default N=2)\n");
@@ -469,6 +508,7 @@ void printhelp(void){
 	printf("  -cN    specifying N colomns in grid (default N=32)\n");
 	printf("             N is limited from 1 to 65536\n");
 	printf("             DO NOT INSERT SPACE BETWEEN 'c' AND 'N'\n");
+	printf("  -w     showing a proportional-font width with a gray color\n");
 	printf("  -h     print help\n");
 	exit(EXIT_FAILURE);
 }
@@ -497,8 +537,10 @@ int main(int argc, char *argv[]){
 		case '-':
 			if(argv[i][1] == 's')
 				spacing = atoi(&argv[i][2]);
-			if(argv[i][1] == 'c')
+			else if(argv[i][1] == 'c')
 				colchar = atoi(&argv[i][2]);
+			else if(argv[i][1] == 'w')
+				dwflag = ON;
 			else if( (argv[i][1]=='v') || (argv[i][1]=='h'))
 				printhelp();
 			break;

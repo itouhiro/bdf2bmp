@@ -1,6 +1,6 @@
 bdf2bmp  --  generate bmp-image-file from bdf-font-file
-version: 0.4
-date: Fri Dec 29 14:50:52 2000
+version: 0.5
+date: Sat Dec 30 14:48:05 2000
 author: ITOU Hiroki (itouh@lycos.ne.jp)
 
 ●説明
@@ -15,15 +15,19 @@ $ bdf2bmp -s3 -c16 courR18.bdf courR18.bmp
 気をつけてください。
 
 オプション:
- -sN  文字仕切り(space)の幅を Nピクセルにします。Nに指定する数値は、
+ -sN  文字仕切り(spacing)の幅を Nピクセルにします。Nに指定する数値は、
       0から32までに制限されています。デフォルトは 2。
- -cN  コラム数(水平方向に並ぶグリフ数)を N個にします。Nに指定する数値は、
+      sと数字のあいだに空白を入れないでください。
+ -cN  column数(水平方向に並ぶグリフ数)を N個にします。Nに指定する数値は、
       1から65536までに制限されています。デフォルトは 32。
+      cと数字のあいだに空白を入れないでください。
+ -w   プロポーショナル(可変幅)フォントの文字ごとの幅を、
+      色分けして表示する。デフォルトは色分けしません。
  -h   ヘルプを表示します。
 
 
 ●ファイル
-bdf2bmp04/bdf2bmp.c    ソースコード
+bdf2bmp05/bdf2bmp.c    ソースコード
           bdf2bmp.txt  ドキュメント(このファイル)
           bdf2bmp.exe  Windowsで動作するバイナリ
 
@@ -34,12 +38,15 @@ PlamoLinux 2.0 + gcc version egcs-2.91.66 19990314 (egcs-1.1.2 release)
 $ cc bdf2bmp.c -o bdf2bmp
 としてください。
 
+ANSI Cの範囲で書いているので(ただしコメントはC++スタイルを使用している)、
+ほかの環境でもコンパイル可能と思います。
+
 Windowsで動作するバイナリは Windows98SecondEdition日本語版 +
 Borland C++ Compiler 5.5.1 for Win32 日本語版でコンパイルしました。
 
 
 ●現在の制限
-文字仕切りの色は、#a0a0c4 固定です。変更するには、
+文字仕切り(spacing)の色は、#a0a0c4 固定です。変更するには、
 ソースコードの 33行めから 35行めを直接書き換えてください。
 
 
@@ -49,6 +56,9 @@ Copyright (c) 2000 ITOU Hiroki All rights reserved.
 
 
 ●更新履歴
+ver0.5   Sat Dec 30 14:48:05 2000
+         プロポーショナル(可変幅)フォントの文字ごとの幅を、
+         色分けして表示できるようにした
 ver0.4   Fri Dec 29 14:51:21 2000
          水平方向に並ぶグリフ数を変更できるようにした
          コメントを全部英語にした(gccとbcc32でいちいち文字コードを
