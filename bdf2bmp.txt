@@ -1,10 +1,11 @@
-bdf2bmp   --  convert bdf-font-file to bmp-image-file
-version: 0.1
-date: Sun Dec 17 19:59:20 2000
+bdf2bmp   --  generate bmp-image-file from bdf-font-file
+version: 0.1.1
+date: Mon Dec 18 03:13:44 2000
 author: ITOU Hiroki (itouh@lycos.ne.jp)
+Copyright (c) 2000 ITOU Hiroki. All Rights Reserved.
 
 ●説明
-BDFフォントファイルを BMP画像ファイルに変換するソフトウェアです。
+BDFフォントファイルから BMP画像ファイルを生成するソフトウェアです。
 8bitカラー(256色)のBMP画像ファイルを生成します。
 
 使いかたは、
@@ -12,17 +13,15 @@ $  bdf2bmp input.bdf output.bmp
 でOK。
 
 ●ファイル
-bdf2bmp01.c    ソースコード
-bdf2bmp01.txt  ドキュメント(このファイル)
-bdf2bmp01.exe  Windowsで動作するバイナリ
+bdf2bmp011.c    ソースコード
+bdf2bmp011.txt  ドキュメント(このファイル)
+bdf2bmp011.exe  Windowsで動作するバイナリ
 
 ●コンパイル
 Borland C++ Compiler 5.5.1 for Win32 + Windows98SecondEditon日本語版
 を使用してコンパイルしました。
-Copyright (c) 1993, 2000 Borland
-
 gcc 2.7.2.3 + FreeBSD 3.5.1Rでもコンパイル、動作することを確認しました。
-そのときは bdf2bmp01.c の文字コードを、元はShift_JISですが、EUC-JAPANに
+そのときは bdf2bmp01.c の文字コードを、元はShift_JISですが、EUC-JPに
 変換してからコンパイルしてください。
 
 ●現在の制限
@@ -31,11 +30,21 @@ gcc 2.7.2.3 + FreeBSD 3.5.1Rでもコンパイル、動作することを確認�
 (理由: このソフトウェアがオフセットをまったく見てないから。)
 
 現在対応している BDFファイルは
-k14-goth, sinonome12, sinonome16, 7x14, 7x14rk, 8x16rk など、
+k14-goth, sinonome12, sinonome16, Kappa20, 7x14, 8x16rk など、
 オフセットがない(というかどのグリフもオフセットが同じ)ファイルだけです。
 
+●著作権
+BSDライセンスにしたいと思っています。
+でもよく知らないので、これから調べます。
+
+●更新履歴
+ver0.1.1 Mon Dec 18 03:13:44 2000
+	ver0.1のバグ(BITMAPデータが大文字で書かれていると
+	字形の認識がおかしくなる)を修正した
+ver0.1   Sun Dec 17 19:59:20 2000
+
 --
-ITOU Hiroki
+itouh
 http://www.geocities.co.jp/Playtown-Domino/7021/
 
 
@@ -187,6 +196,7 @@ for(y=0; y<BMPの縦の高さ(bmpH); y++){
 		//  はんい 0 to 31        はんい 0to6lineでは0,7to13lineでは32
 
 		u_char = *((fbbxH*fbbxW*g) + (fbbxW*(y%fbbxH)) + (x%fbbxW));
-		
 
- (fbbxH*fbbxW)*g + fbbxW*y
+
+
+//end of file

@@ -1,7 +1,8 @@
-// bdf2bmp   --  convert bdf-font-file to bmp-image-file
-// version: 0.1
-// date: Sun Dec 17 19:59:20 2000
-// author: ITOU Hiroki (itouh@lycos.ne.jp)
+//bdf2bmp   --  generate bmp-image-file from bdf-font-file
+//version: 0.1.1
+//date: Mon Dec 18 03:13:44 2000
+//author: ITOU Hiroki (itouh@lycos.ne.jp)
+//Copyright (c) 2000 ITOU Hiroki. All Rights Reserved.
 
 #define VERBOSE
 #define LSB //LittleEndian; if your computer is MSB(BigEndian), erase this line.
@@ -26,6 +27,13 @@
 #else /* not VERBOSE */
 #define v_printf(message,arg)
 #endif /* VERBOSE */
+
+#define storebitmap()   if(flagBitmap == ON){\
+				assignBitmap(bitmapP, sP,nowChar,nowH);\
+				nowH++;\
+                        }
+                               //改行コードもコピーする
+                               //改行コードを含めた文字列 sPの長さ
 
 //関数prototype
 unsigned char*assignBmp(unsigned char* bitmapP);
@@ -251,7 +259,9 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 				fbbxH = atoi(firstP);
 				v_printf("glyph width=%dpixels\n",fbbxW);
 				v_printf("glyph height=%dpixels\n",fbbxH);
-			}
+				break;
+			}else
+				storebitmap();
 			break;
 		case 'C':
 			if(strncmp(sP, "CHARS ", 6) == 0){
@@ -274,27 +284,30 @@ unsigned char *readBdfFile(unsigned char *bitmapP, FILE *readP){
 				}else
 					bitmapP = tmpP;
 				d_printf("malloc %dbytes\n",chars*fbbxH*fbbxW);
-			}
+				break;
+			}else
+				storebitmap();
 			break;
 		case 'B':
 			if(strncmp(sP, "BITMAP", 6) == 0){
 				flagBitmap = ON;
 				nowH = 0;
 				//d_printf("flagBitmap=%d\n",flagBitmap);
-			}
+				break;
+			}else
+				storebitmap();
 			break;
 		case 'E':
 			if(strncmp(sP, "ENDCHAR", 7) == 0){
 				flagBitmap = OFF;
 				nowChar ++;
 				//d_printf("flagBitmap=%d\n",flagBitmap);
-			}
+				break;
+			}else
+				storebitmap();
 			break;
 		default:
-			if(flagBitmap == ON){
-				assignBitmap(bitmapP, sP,nowChar,nowH);
-				nowH++;
-			}
+			storebitmap();
 			break;
 		}//switch
 	}//while
