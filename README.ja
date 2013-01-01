@@ -2,7 +2,7 @@
  * bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
  * version: 0.6
  * date:    Wed Jan 10 23:59:03 2001
- * author:  ITOU Hiroki (itouh@lycos.ne.jp)
+ * author:  ITOU Hiroki
  */
 
 
@@ -82,7 +82,3 @@ ver0.2          Thu Dec 21 12:06:57 2000
 ver0.1.1        Mon Dec 18 03:13:44 2000
                 bugfix
 ver0.1          Sun Dec 17 19:59:20 2000
-
---
-itouh
-http://www.geocities.co.jp/Playtown-Domino/7021/

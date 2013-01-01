@@ -1,73 +1,82 @@
-/*
- * bdf2bmp  --  output all glyphs in a bdf-font to a bmp-image-file
- * version: 0.6
- * date:    Wed Jan 10 23:59:03 2001
- * author:  ITOU Hiroki (itouh@lycos.ne.jp)
- */
+bdf2bmp
+=======
+
+output all glyphs in a bdf-font to a bmp-image-file
+
 
 
 SYNOPSIS
-        bdf2bmp [-options ...] input-BDF-file output-BMP-file
+    bdf2bmp [-options ...] input-BDF-file output-BMP-file
 
 DESCRIPTION
-        The bdf2bmp utility creates a BMP-image-file containing
-        all the glyph-images in a BDF-font-file.  That BMP file
-        is a kind of Windows-type, 256 colors(8bitsPerPixel).
+    The bdf2bmp utility creates a BMP-image-file containing
+    all the glyph-images in a BDF-font-file.  That BMP file
+    is a kind of Windows-type, 256 colors(8bitsPerPixel).
 
 OPTIONS
-        bdf2bmp accepts command line options listed below:
+    bdf2bmp accepts command line options listed below:
 
-        -s<number>
-                This option specifies the width of spacing.
-                The <number> can range from 0 to 32.  The
-                default is 2.
+    -s<number>
+        This option specifies the width of spacing.
+        The <number> can range from 0 to 32.  The
+        default is 2.
 
-        -c<number>
-                This option specifies the number of columns in
-                grid.  The <number> can range from 1 to 1024.
-                The default is 32.
+    -c<number>
+        This option specifies the number of columns in
+        grid.  The <number> can range from 1 to 1024.
+        The default is 32.
 
-        -w
-                This option directs to show the baseline and
-                the widths of glyphs with gray colors.
+    -w
+        This option directs to show the baseline and
+        the widths of glyphs with gray colors.
 
-        -i
-                This option directs to prompt whether to
-                overwrite an existing file.  If the response
-                does not begin with `y' or `Y', the file is
-                not overwritten.
+    -i
+        This option directs to prompt whether to
+        overwrite an existing file.  If the response
+        does not begin with `y' or `Y', the file is
+        not overwritten.
 
-        -h
-                This option directs to print help.
+    -h
+        This option directs to print help.
 
 EXAMPLES
-        $  bdf2bmp -s 3 -c 16 courR18.bdf courR18.bmp
+    $  bdf2bmp -s 3 -c 16 courR18.bdf courR18.bmp
 
-        $  bdf2bmp -wi xc/fonts/bdf/75dpi/timI18.bdf s.bmp
+    $  bdf2bmp -wi xc/fonts/bdf/75dpi/timI18.bdf s.bmp
 
 COMPILE
-        The author succeeded compiling this source-code and
-        executing in
-                Linux 2.2.14 + gcc(egcs-2.91.66)
+    This source-code is written in ANSI C style.
 
-                Windows98 SecondEdition +
-                Borland C++ Compiler 5.5.1 for Win32
-        on
-                IBM-PC compatible, Intel Celeron 433MHz
+    An example to compile and install in Linux system:
+        $  cc bdf2bmp.c -o bdf2bmp
+        $  su
+        #  cp bdf2bmp /usr/local/bin
 
-        This source-code is written in ANSI C style.
-        So, you can probably compile and execute in other
-        environments.
+LICENSE
+    BSD style
 
-        An example to compile and install in Linux system:
-                $  cc bdf2bmp.c -o bdf2bmp
-                $  su
-                #  cp bdf2bmp /usr/local/bin
-
-COPYRIGHT
-        Copyright (c) 2000,2001 ITOU Hiroki All rights reserved.
-        See the source-code for details.
-
---
-itouh
-http://www.geocities.co.jp/Playtown-Domino/7021/
+    ----------------------------------------
+    Copyright (c) 2000,2001 ITOU Hiroki
+    All rights reserved.
+    
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions
+    are met:
+    1. Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+    2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+    
+    THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+    ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+    OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+    LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+    OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+    SUCH DAMAGE.
+    ----------------------------------------
