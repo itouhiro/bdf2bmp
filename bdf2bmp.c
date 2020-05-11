@@ -164,9 +164,9 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         int32_t bmpw; /* bmp-image width (pixel) */
         int32_t bmph; /* bmp-image height (pixel) */
         int bmppad; /* number of padding pixels */
-        uint32_t bmpTotalSize; /* bmp filesize (byte) */
+        u_int32_t bmpTotalSize; /* bmp filesize (byte) */
         /*  bmp-lines needs to be long alined and padded with 0 */
-        uint32_t ulong;
+        u_int32_t ulong;
         unsigned short ushort;
         int32_t slong;
         unsigned char uchar;
