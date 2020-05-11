@@ -161,14 +161,14 @@ void dwrite(const void *varP, int n, FILE *outP){
  *    BMP-file: noCompression(BI_RGB), 8bitColor, Windows-Win32 type
  */
 void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
-        long bmpw; /* bmp-image width (pixel) */
-        long bmph; /* bmp-image height (pixel) */
+        int32_t bmpw; /* bmp-image width (pixel) */
+        int32_t bmph; /* bmp-image height (pixel) */
         int bmppad; /* number of padding pixels */
-        unsigned long bmpTotalSize; /* bmp filesize (byte) */
+        u_int32_t bmpTotalSize; /* bmp filesize (byte) */
         /*  bmp-lines needs to be long alined and padded with 0 */
-        unsigned long ulong;
+        u_int32_t ulong;
         unsigned short ushort;
-        signed long slong;
+        int32_t slong;
         unsigned char uchar;
         int i,x,y,g,tmp;
         int rowchar; /* number of row glyphs */
@@ -188,7 +188,7 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
 
         bmppad = ((bmpw + 3) / 4 * 4) - bmpw;
         bmpTotalSize = (bmpw + bmppad) * bmph
-                + sizeof(long)*11 + sizeof(short)*5 + sizeof(char)*4*256;
+                + sizeof(int32_t)*11 + sizeof(short)*5 + sizeof(char)*4*256;
         v_printf("  BMP filesize = %d bytes\n", (int)bmpTotalSize);
 
 
@@ -204,7 +204,7 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         dwrite(&ushort, sizeof(ushort), bmpP); /* reserved as 0 */
 
         /* bfOffBits: offset to image-data array */
-        ulong = sizeof(long)*11 + sizeof(short)*5 + sizeof(char)*4*256;
+        ulong = sizeof(int32_t)*11 + sizeof(short)*5 + sizeof(char)*4*256;
         dwrite(&ulong, sizeof(ulong), bmpP);
 
 
