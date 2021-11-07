@@ -109,10 +109,10 @@ int main(int argc, char *argv[]);
  * LSB .. Least Significant Byte first (LittleEndian) e.g. Intel Pentium
  */
 void checkEndian(void){
-        unsigned long ulong = 0x12345678;
+        unsigned int uint = 0x12345678;
         unsigned char *ucharP;
 
-        ucharP = (unsigned char *)(&ulong);
+        ucharP = (unsigned char *)(&uint);
         if(*ucharP == 0x78){
                 d_printf("LSB 0x%x\n", *ucharP);
                 endian = 1;
@@ -161,14 +161,14 @@ void dwrite(const void *varP, int n, FILE *outP){
  *    BMP-file: noCompression(BI_RGB), 8bitColor, Windows-Win32 type
  */
 void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
-        long bmpw; /* bmp-image width (pixel) */
-        long bmph; /* bmp-image height (pixel) */
+        int bmpw; /* bmp-image width (pixel) */
+        int bmph; /* bmp-image height (pixel) */
         int bmppad; /* number of padding pixels */
-        unsigned long bmpTotalSize; /* bmp filesize (byte) */
-        /*  bmp-lines needs to be long alined and padded with 0 */
-        unsigned long ulong;
+        unsigned int bmpTotalSize; /* bmp filesize (byte) */
+        /*  bmp-lines needs to be int alined and padded with 0 */
+        unsigned int uint;
         unsigned short ushort;
-        signed long slong;
+        signed int sint;
         unsigned char uchar;
         int i,x,y,g,tmp;
         int rowchar; /* number of row glyphs */
@@ -188,7 +188,7 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
 
         bmppad = ((bmpw + 3) / 4 * 4) - bmpw;
         bmpTotalSize = (bmpw + bmppad) * bmph
-                + sizeof(long)*11 + sizeof(short)*5 + sizeof(char)*4*256;
+                + sizeof(int)*11 + sizeof(short)*5 + sizeof(char)*4*256;
         v_printf("  BMP filesize = %d bytes\n", (int)bmpTotalSize);
 
 
@@ -197,42 +197,42 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
          */
         ushort = 0x4d42; /* 4d = 'M', 42 = 'B' */
         dwrite(&ushort, sizeof(ushort), bmpP);
-        ulong = bmpTotalSize;
-        dwrite(&ulong, sizeof(ulong), bmpP);
+        uint = bmpTotalSize;
+        dwrite(&uint, sizeof(uint), bmpP);
         ushort = 0x00;
         dwrite(&ushort, sizeof(ushort), bmpP); /* reserved as 0 */
         dwrite(&ushort, sizeof(ushort), bmpP); /* reserved as 0 */
 
         /* bfOffBits: offset to image-data array */
-        ulong = sizeof(long)*11 + sizeof(short)*5 + sizeof(char)*4*256;
-        dwrite(&ulong, sizeof(ulong), bmpP);
+        uint = sizeof(int)*11 + sizeof(short)*5 + sizeof(char)*4*256;
+        dwrite(&uint, sizeof(uint), bmpP);
 
 
         /*
          * BITMAPINFOHEADER struct
          */
-        ulong = 40; /* when Windows-BMP, this is 40 */
-        dwrite(&ulong, sizeof(ulong), bmpP);
-        slong = bmpw; /* biWidth */
-        dwrite(&slong, sizeof(slong), bmpP);
-        slong = bmph; /* biHeight: down-top */
-        dwrite(&slong, sizeof(slong), bmpP);
+        uint = 40; /* when Windows-BMP, this is 40 */
+        dwrite(&uint, sizeof(uint), bmpP);
+        sint = bmpw; /* biWidth */
+        dwrite(&sint, sizeof(sint), bmpP);
+        sint = bmph; /* biHeight: down-top */
+        dwrite(&sint, sizeof(sint), bmpP);
         ushort = 1; /* biPlanes: must be 1 */
         dwrite(&ushort, sizeof(ushort), bmpP);
         ushort = 8; /* biBitCount: 8bitColor */
         dwrite(&ushort, sizeof(ushort), bmpP);
-        ulong = 0; /* biCompression: noCompression(BI_RGB) */
-        dwrite(&ulong, sizeof(ulong), bmpP);
-        ulong = 0; /* biSizeImage: when noComprsn, 0 is ok */
-        dwrite(&ulong, sizeof(ulong), bmpP);
-        slong = 0; /* biXPelsPerMeter: resolution x; 0 ok */
-        dwrite(&slong, sizeof(slong), bmpP);
-        slong = 0; /* biYPelsPerMeter: res y; 0 is ok */
-        dwrite(&slong, sizeof(slong), bmpP);
-        ulong = 0; /* biClrUsed: optimized color palette; not used */
-        dwrite(&ulong, sizeof(ulong), bmpP);
-        ulong = 0; /* biClrImportant: 0 is ok */
-        dwrite(&ulong, sizeof(ulong), bmpP);
+        uint = 0; /* biCompression: noCompression(BI_RGB) */
+        dwrite(&uint, sizeof(uint), bmpP);
+        uint = 0; /* biSizeImage: when noComprsn, 0 is ok */
+        dwrite(&uint, sizeof(uint), bmpP);
+        sint = 0; /* biXPelsPerMeter: resolution x; 0 ok */
+        dwrite(&sint, sizeof(sint), bmpP);
+        sint = 0; /* biYPelsPerMeter: res y; 0 is ok */
+        dwrite(&sint, sizeof(sint), bmpP);
+        uint = 0; /* biClrUsed: optimized color palette; not used */
+        dwrite(&uint, sizeof(uint), bmpP);
+        uint = 0; /* biClrImportant: 0 is ok */
+        dwrite(&uint, sizeof(uint), bmpP);
 
         /*
          * RGBQUAD[256]: color palette
@@ -295,7 +295,7 @@ void writeBmpFile(unsigned char *bitmapP, int spacing, int colchar, FILE *bmpP){
         for(y=bmph-1; y>=0; y--){
                 for(x=0; x<bmpw+bmppad; x++){
                         if(x>=bmpw){
-                                /* padding: long(4bytes) aligned */
+                                /* padding: int(4bytes) aligned */
                                 uchar = 0; /* must pad with 0 */
                                 dwrite(&uchar, sizeof(uchar), bmpP);
                         }else{
